@@ -55,9 +55,9 @@ export const SelfEditorPanel: React.FC<SelfEditorPanelProps> = ({ isOpen, propos
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="w-full max-w-4xl h-[90vh] bg-[#030814]/90 jarvis-border rounded-lg flex flex-col font-orbitron">
-                <header className="flex-shrink-0 p-4 border-b border-cyan-400/20 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-2 sm:p-6">
+            <div className="w-full max-w-6xl h-[95vh] bg-[#030814]/95 border border-cyan-500/30 shadow-[0_0_50px_rgba(0,194,255,0.2)] rounded-2xl flex flex-col font-orbitron overflow-hidden">
+                <header className="flex-shrink-0 p-6 border-b border-cyan-400/20 flex justify-between items-center bg-cyan-500/5">
                     <div>
                         <h2 className="text-2xl text-cyan-300 jarvis-glow uppercase tracking-wider">Self-Development System</h2>
                         <p className="text-sm text-cyan-400/70">Awaiting Directive</p>

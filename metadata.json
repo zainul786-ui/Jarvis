@@ -2,6 +2,8 @@
   "name": "J.A.R.V.I.S. Web HUD",
   "description": "A futuristic, voice-first AI assistant HUD inspired by Jarvis. Features low-latency voice interaction, real-time transcription, and a dynamic audio visualizer. Created by Zainul Amaan.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera",
+    "geolocation"
   ]
 }

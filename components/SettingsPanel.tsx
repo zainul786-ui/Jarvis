@@ -53,11 +53,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, a
     };
     
     const handleKeyChange = (keyName: keyof ApiKeys, value: string) => {
-        setLocalKeys(prev => ({ ...prev, [keyName]: { ...prev[keyName], key: value } }));
+        const entry = localKeys[keyName];
+        if (typeof entry === 'object' && entry !== null && 'key' in entry) {
+            setLocalKeys(prev => ({ ...prev, [keyName]: { ...entry, key: value } }));
+        }
     };
 
     const handleToggle = (keyName: keyof ApiKeys) => {
-        setLocalKeys(prev => ({ ...prev, [keyName]: { ...prev[keyName], enabled: !prev[keyName].enabled } }));
+        const entry = localKeys[keyName];
+        if (typeof entry === 'object' && entry !== null && 'enabled' in entry) {
+            setLocalKeys(prev => ({ ...prev, [keyName]: { ...entry, enabled: !entry.enabled } }));
+        }
     };
 
     return (

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import JSZip from 'jszip';
 import { VoicePanel } from './components/VoicePanel';
 import { ArcReactorIcon } from './components/Icons';
 import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext, PersonalityMode } from './types';
@@ -11,7 +12,6 @@ import { getProjectSourceCode } from './utils/sourceCode';
 import { useApiKeys } from './hooks/useApiKeys';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HolographicPanel } from './components/HolographicPanel';
-import { initializeApi } from './services/gemini';
 
 const BackgroundFX = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -20,8 +20,7 @@ const BackgroundFX = () => (
     </div>
 );
 
-type AppState = 'loading' | 'requires_key' | 'ready';
-const API_KEY_STORAGE_KEY = 'gemini_api_key';
+type AppState = 'loading' | 'ready';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>('loading');
@@ -30,7 +29,6 @@ const App: React.FC = () => {
     const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
     const [projectFiles, setProjectFiles] = useState<Record<string, string> | null>(null);
     const [systemContext, setSystemContext] = useState<SystemContext>('IDLE');
-    const [localApiKey, setLocalApiKey] = useState('');
 
     // Self-development state
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -43,28 +41,17 @@ const App: React.FC = () => {
     const { apiKeys, updateApiKeys, updatePersonality } = useApiKeys();
 
     useEffect(() => {
-        const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-        if (storedKey) {
-            initializeApi(storedKey);
-            setAppState('ready');
-        } else {
-            setAppState('requires_key');
-        }
-    }, []);
-
-    const handleApiKeySubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const key = localApiKey.trim();
-        if (key) {
-            localStorage.setItem(API_KEY_STORAGE_KEY, key);
-            initializeApi(key);
-            setAppState('ready');
-        }
-    };
-
-    const handleApiKeyInvalid = useCallback(() => {
-        localStorage.removeItem(API_KEY_STORAGE_KEY);
-        setAppState('requires_key');
+        setAppState('ready');
+        
+        // Proactive greeting when system is ready
+        const timer = setTimeout(() => {
+            setTranscript({ user: '', jarvis: 'Welcome Sir. Systems are at 100%. Aaj kya dhamaka karne ka iraada hai?' });
+            setAssistantStatus(AssistantStatus.SPEAKING);
+            // We don't actually trigger audio here to avoid browser autoplay blocks, 
+            // but the text will show up.
+        }, 2000);
+        
+        return () => clearTimeout(timer);
     }, []);
 
     const handleChangesProposed = useCallback((changes: CodeChange[]) => {
@@ -113,7 +100,7 @@ const App: React.FC = () => {
                 }
             }
             
-            const zip = new window.JSZip();
+            const zip = new JSZip();
             Object.entries(newSource).forEach(([path, content]) => {
                 zip.file(path, content);
             });
@@ -198,46 +185,6 @@ const App: React.FC = () => {
             </div>
         );
     }
-
-    if (appState === 'requires_key') {
-        return (
-            <div className="bg-[#030814] min-h-screen flex flex-col items-center justify-center p-4 text-center">
-                <BackgroundFX />
-                <div className="relative z-10 jarvis-border bg-[#030814]/80 backdrop-blur-sm p-8 rounded-lg max-w-lg">
-                    <div className="flex items-center space-x-4 mb-6 justify-center">
-                        <ArcReactorIcon className="w-12 h-12 text-cyan-400" />
-                        <div>
-                            <h1 className="text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest font-orbitron">J.A.R.V.I.S.</h1>
-                            <p className="text-sm text-cyan-400/70">System Activation</p>
-                        </div>
-                    </div>
-                    <p className="text-cyan-300/80 mb-6">
-                      Please enter your Google AI Gemini API key to proceed.
-                    </p>
-                    <form onSubmit={handleApiKeySubmit} className="flex flex-col space-y-4">
-                        <input
-                            type="password"
-                            value={localApiKey}
-                            onChange={(e) => setLocalApiKey(e.target.value)}
-                            className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                            placeholder="Enter your Gemini API Key"
-                            required
-                        />
-                        <button
-                            type="submit"
-                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={!localApiKey.trim()}
-                        >
-                            Activate System
-                        </button>
-                    </form>
-                    <p className="text-xs text-cyan-500/60 mt-4">
-                        Your key is stored locally and used only for API requests.
-                    </p>
-                </div>
-            </div>
-        );
-    }
     
     return (
         <div className={`bg-[#030814] min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 transition-opacity duration-1000 opacity-100`}>
@@ -288,7 +235,7 @@ const App: React.FC = () => {
                     setAssistantStatus={setAssistantStatus}
                     setTranscript={setTranscript}
                     setAnalyserNode={setAnalyserNode}
-                    onApiKeyInvalid={handleApiKeyInvalid}
+                    onApiKeyInvalid={() => {}}
                     onChangesProposed={handleChangesProposed}
                     projectFiles={projectFiles}
                     onProjectUpdate={handleProjectUpdate}

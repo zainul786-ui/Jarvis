@@ -36,5 +36,19 @@ export const useTaskManager = () => {
         });
     }, []);
 
-    return { tasks, addTask };
+    const completeTask = useCallback((taskId: string) => {
+        setTasks(prevTasks => {
+            const updatedTasks = prevTasks.map(task => 
+                task.id === taskId ? { ...task, status: 'completed' as const } : task
+            );
+            try {
+                localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(updatedTasks));
+            } catch (error) {
+                console.error("Failed to save tasks:", error);
+            }
+            return updatedTasks;
+        });
+    }, []);
+
+    return { tasks, addTask, completeTask };
 };

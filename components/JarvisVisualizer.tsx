@@ -9,7 +9,7 @@ interface VoiceVisualizerProps {
 
 export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ analyserNode, status }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameId = useRef<number>();
+  const animationFrameId = useRef<number>(undefined);
 
   useEffect(() => {
     const canvas = canvasRef.current;
