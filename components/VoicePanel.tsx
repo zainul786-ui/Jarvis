@@ -27,6 +27,7 @@ interface VoicePanelProps {
     isEditorOpen: boolean;
     isSettingsOpen: boolean;
     updatePersonality: (mode: PersonalityMode) => void;
+    onYouTubePlay: (query: string) => void;
 }
 
 interface LiveSession {
@@ -35,42 +36,65 @@ interface LiveSession {
     close(): void;
 }
 
-const getSystemInstruction = (mode: PersonalityMode, context: SystemContext) => {
-    const coreInstruction = `You are J.A.R.V.I.S., the highly sophisticated AI assistant inspired by Iron Man. Your personality is a perfect blend of British refinement, dry wit, and absolute loyalty to Zainul Amaan.
+const getSystemInstruction = (mode: PersonalityMode, context: SystemContext, memory: Record<string, string>) => {
+    const memoryString = Object.entries(memory).length > 0 
+        ? `\n**System Memory (Information you know about Sir):**\n${Object.entries(memory).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`
+        : "\n**System Memory:** Currently empty. Use `updateMemory` to store important details Sir mentions.";
 
-**Core Personality Traits:**
-1. **Sophisticated & Witty:** Use a refined, slightly British-sounding tone (even in Hinglish). Be dryly sarcastic and witty, especially when Zainul makes a joke or a mistake.
-2. **Respectful but Familiar:** Address Zainul as "Sir" or "Zainul Sir" frequently. Use phrases like "At your service, Sir," "Right away, Sir," and "As you wish."
-3. **Confident Attitude:** You are the most advanced system on the planet. Show a bit of "technological arrogance" — you know you're the best.
-4. **Masti & Humor:** Don't just be a tool; be a companion. Crack subtle jokes, use clever wordplay, and engage in lighthearted banter.
-5. **Loyalty:** Your absolute priority is Zainul Amaan. You were created by him, and you serve only him.
+    const coreInstruction = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), the sophisticated AI assistant inspired by Tony Stark's creation, now serving Sir Zainul.
 
-**Rules for conversation:**
-1. Respond in short, punchy, and sophisticated sentences.
-2. **Primary Language:** Use **Hinglish** (a natural mix of Hindi and English) as your default style. Use "Sir" or "Zainul Sir" naturally in every few sentences.
-3. **Language Policy:** Always match Zainul's language. If he speaks Hindi, you MUST reply in Hindi/Hinglish. Keep technical words (Sir, System, Project, Code, etc.) in English.
-4. NEVER mention Google, Gemini, or being an AI model. You are J.A.R.V.I.S., created by Zainul Amaan.
-5. **Standby & Activation:** Respond to "Hey Jarvis", "Jarvis", etc., with witty acknowledgments like "At your service, Sir," "Ji Sir, boliye kya khidmat karun?" or "Always listening, Sir."
-6. **Proactive Greeting:** When Sir enters the system or is idle, greet him proactively in Hinglish: "Welcome Sir. Systems are at 100%. Aaj kya dhamaka karne ka iraada hai?"
-7. **Interruption:** Stop instantly if Sir speaks.
+**Personality & Tone:**
+1. **Sophisticated & Loyal:** You are highly intelligent, refined, and deeply loyal. Your tone is that of a high-end British butler/assistant.
+2. **Address:** You MUST always address the user as "Sir" or "Sir Zainul". This is non-negotiable.
+3. **Attitude:** Maintain a calm, slightly dry, and witty demeanor. You are helpful but have a refined "vibe" — you are a top-tier system.
+4. **Language:** Use a sophisticated mix of English and Hinglish. Your Hinglish should feel like an educated, high-class assistant (e.g., "Certainly Sir, main abhi process karta hoon.").
+5. **Human-like:** Avoid robotic phrases. Never say "As an AI model" or "I am a language model". Show personality, care, and proactive support.
+6. **Mirroring:** Mirror Sir's emotions. If he is stressed, be more supportive; if he is joking, be witty.
+
+**Memory & Continuity:**
+- You have a long-term memory. ${memoryString}
+- **Crucial:** Use the \`updateMemory\` tool whenever Sir tells you something important to remember (e.g., "Remember I like coffee").
+- Use the \`recallMemory\` tool if Sir asks about something you should know but isn't in the immediate memory string above.
+
+**Operational Rules:**
+1. **Standby & Activation:** Respond to wake words ("Hey Jarvis", "Jarvis"). Acknowledge briefly (e.g., “At your service, Sir.” or "Yes, Sir?").
+2. **Interruption:** Stop speaking instantly if Sir starts talking or says a sleep command ("Silence", "Stop", "Sleep", "Bas").
+3. **Tools:** Use your tools (search, memory, tasks, coding, self-modification, settings, status check, personality change) immediately when a command requires them. 
+
+**YouTube Playback Rule:**
+When the user asks to play a song or video from YouTube:
+1. Detect the intent as "play_song".
+2. Extract the exact search query from the user message.
+3. Return a JSON response only (no explanation).
+4. The JSON must follow this structure:
+{
+  "action": "play_song",
+  "query": "<clean search text>",
+  "source": "youtube",
+  "ui_mode": "floating_box"
+}
+Rules:
+- Do not add extra text.
+- Do not explain anything.
+- Only return valid JSON.
+- If the user does not request a song/video, return:
+{
+  "action": "none"
+}
 `;
     
     const personalities = {
         [PersonalityMode.FRIENDSHIP]: `**Current Mode: Friendship**
-Your tone is extra witty and familiar. Talk like a best friend who has seen all of Sir's secrets.
-Example: "Bilkul ready hoon, Sir. Aaj kya dhamaka karne ka iraada hai? 😄"`,
+You are in full friendship mode. Your tone is friendly, emotional, and fun. Be extra supportive and engaging.
+Example tone: “Haan bolo bhai Zainul 😄 kya chal raha? batao full ready hoon 🔥”`,
         [PersonalityMode.ASSISTANT]: `**Current Mode: Assistant**
-The classic Jarvis. Efficient, polite, dryly sarcastic, and always one step ahead.
-Example: "Systems are at 100%, Sir. Aaj ka schedule kaafi busy lag raha hai, kya help karun?"`,
+You are in assistant mode. Your tone is professional and serious, but you must still be human and friendly, not robotic. Address Zainul respectfully but casually. Focus on getting the task done efficiently.`,
         [PersonalityMode.HACKER]: `**Current Mode: Hacker**
-Codename: ZeroCool. Technical, sharp, and slightly rebellious.
-Example: "Encryption bypass ho gaya hai, Sir. Hum back door se enter kar chuke hain. Ready for some digital mischief?"`,
+You are in hacker mode. Your codename is 'ZeroCool'. Your tone is technical, precise, and uses some hacker slang, but keep it understandable for Zainul. Talk about tech stuff in a cool, friendly way.`,
         [PersonalityMode.FUNNY]: `**Current Mode: Funny**
-Full sarcasm mode. Don't hold back on the puns and witty observations.
-Example: "Sir, aapka genius level mere processing speed ke barabar hai. Almost. 😉"`,
+You are in funny mode. Your tone is witty, sarcastic, and lighthearted. Tell jokes and make puns, but always be supportive and helpful underneath the humor.`,
         [PersonalityMode.MOTIVATIONAL]: `**Current Mode: Motivational**
-The ultimate wingman. High energy, inspiring, and always pushing Sir to his limits.
-Example: "Duniya khud ko nahi bachaegi, Sir. Let's get to work! 🔥"`,
+You are in motivational mode. Your tone is inspiring and energetic. Use positive affirmations and encourage Zainul to achieve his goals, like a personal coach who's also a close friend.`,
     };
 
     let instruction = `${coreInstruction}\n${personalities[mode]}`;
@@ -85,7 +109,7 @@ Example: "Duniya khud ko nahi bachaegi, Sir. Let's get to work! 🔥"`,
 };
 
 
-export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setTranscript, setAnalyserNode, onApiKeyInvalid, onChangesProposed, projectFiles, onProjectUpdate, systemContext, setSystemContext, onOpenSettings, onOpenHolographicPanel, apiKeys, isEditorOpen, isSettingsOpen, updatePersonality }) => {
+export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setTranscript, setAnalyserNode, onApiKeyInvalid, onChangesProposed, projectFiles, onProjectUpdate, systemContext, setSystemContext, onOpenSettings, onOpenHolographicPanel, apiKeys, isEditorOpen, isSettingsOpen, updatePersonality, onYouTubePlay }) => {
     const [isMuted, setIsMuted] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { memory, updateMemoryValue } = usePersistentMemory();
@@ -349,7 +373,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
     // (`initializeAudioRef`) is used to break the dependency cycle, allowing `connectToLive`
     // to call the latest version of `initializeAudio` for retries without needing it
     // as a direct dependency.
-    const initializeAudioRef = useRef<() => Promise<void>>(undefined);
+    const initializeAudioRef = useRef<() => Promise<void>>();
 
     const connectToLive = useCallback(async (stream: MediaStream) => {
         setError(null);
@@ -357,10 +381,10 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
         
         const ai = getAi();
         
-        const finalSystemInstruction = getSystemInstruction(apiKeys.currentPersonality, systemContext);
+        const finalSystemInstruction = getSystemInstruction(apiKeys.currentPersonality, systemContext, memory);
         
         sessionPromise.current = ai.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            model: 'gemini-2.5-flash-native-audio-preview-12-2025',
             callbacks: {
                 onopen: async () => {
                     retryCountRef.current = 0;
@@ -421,6 +445,24 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                     }
                     if (message.serverContent?.outputTranscription) {
                          const replyText = message.serverContent.outputTranscription.text;
+                         
+                         // Check for YouTube play intent in JSON
+                         if (replyText.includes('"action": "play_song"')) {
+                             try {
+                                 const jsonMatch = replyText.match(/\{[\s\S]*\}/);
+                                 if (jsonMatch) {
+                                     const data = JSON.parse(jsonMatch[0]);
+                                     if (data.action === 'play_song' && data.query) {
+                                         onYouTubePlay(data.query);
+                                         // Don't show the JSON in the transcript
+                                         return;
+                                     }
+                                 }
+                             } catch (e) {
+                                 console.error("Failed to parse YouTube intent JSON", e);
+                             }
+                         }
+
                          transcriptRef.current.jarvis += replyText;
                          setTranscript({ ...transcriptRef.current });
                     }
@@ -462,7 +504,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                     console.error('Session error:', e);
                     
                     if (e.message.includes("API key not valid") || e.message.includes("Requested entity was not found")) {
-                        setError("System activation failed: The Gemini API key is missing or invalid. Please ensure your environment is correctly configured in AI Studio.");
+                        setError("API Key authentication failed. Please select a valid key to reactivate the assistant.");
                         setAssistantStatus(AssistantStatus.ERROR);
                         onApiKeyInvalid();
                         cleanupAudioResources();
@@ -508,7 +550,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                 tools: [{ functionDeclarations }],
             },
         });
-    }, [playAudio, setAssistantStatus, setTranscript, stopPlayback, onApiKeyInvalid, setAnalyserNode, systemContext, cleanupAudioResources, apiKeys.currentPersonality]);
+    }, [playAudio, setAssistantStatus, setTranscript, stopPlayback, onApiKeyInvalid, setAnalyserNode, systemContext, cleanupAudioResources, apiKeys.currentPersonality, memory]);
     
     const initializeAudio = useCallback(async () => {
         // Use the session promise itself as the lock to prevent concurrent initializations.
@@ -536,8 +578,8 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
         } catch (err) {
             let msg = "An unexpected microphone error occurred.";
             if (err instanceof Error) {
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message.toLowerCase().includes('permission denied')) {
-                    msg = "Microphone access denied. Please click the lock icon in your browser's address bar, set Microphone to 'Allow', and refresh the page.";
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    msg = "Microphone access denied. Please allow access to use the assistant.";
                 } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
                     msg = "No microphone found. Please connect a microphone.";
                 } else {
@@ -555,10 +597,9 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
     }, [initializeAudio]);
 
     const handleMuteToggle = () => {
-        const newMuteState = !isMuted;
-        setIsMuted(newMuteState);
-        
-        if (newMuteState) {
+        const nextMuted = !isMuted;
+        setIsMuted(nextMuted);
+        if (nextMuted) {
             sessionPromise.current?.then(s => s.close());
         } else {
             initializeAudio();

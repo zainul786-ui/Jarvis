@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import JSZip from 'jszip';
 import { VoicePanel } from './components/VoicePanel';
 import { ArcReactorIcon } from './components/Icons';
 import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext, PersonalityMode } from './types';
@@ -12,6 +11,9 @@ import { getProjectSourceCode } from './utils/sourceCode';
 import { useApiKeys } from './hooks/useApiKeys';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HolographicPanel } from './components/HolographicPanel';
+import { initializeApi } from './services/gemini';
+import { YouTubePlayer } from './components/YouTubePlayer';
+import { searchYouTube, YouTubeVideo } from './services/youtubeService';
 
 const BackgroundFX = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -20,7 +22,8 @@ const BackgroundFX = () => (
     </div>
 );
 
-type AppState = 'loading' | 'ready';
+type AppState = 'loading' | 'requires_key' | 'ready';
+const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>('loading');
@@ -29,6 +32,7 @@ const App: React.FC = () => {
     const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
     const [projectFiles, setProjectFiles] = useState<Record<string, string> | null>(null);
     const [systemContext, setSystemContext] = useState<SystemContext>('IDLE');
+    const [localApiKey, setLocalApiKey] = useState('');
 
     // Self-development state
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -39,19 +43,39 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isHolographicPanelOpen, setIsHolographicPanelOpen] = useState(false);
     const { apiKeys, updateApiKeys, updatePersonality } = useApiKeys();
+    const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
 
     useEffect(() => {
-        setAppState('ready');
-        
-        // Proactive greeting when system is ready
-        const timer = setTimeout(() => {
-            setTranscript({ user: '', jarvis: 'Welcome Sir. Systems are at 100%. Aaj kya dhamaka karne ka iraada hai?' });
-            setAssistantStatus(AssistantStatus.SPEAKING);
-            // We don't actually trigger audio here to avoid browser autoplay blocks, 
-            // but the text will show up.
-        }, 2000);
-        
-        return () => clearTimeout(timer);
+        // The platform provides the Gemini API key in process.env.GEMINI_API_KEY.
+        // We initialize with it if it's available.
+        if (process.env.GEMINI_API_KEY) {
+            initializeApi(process.env.GEMINI_API_KEY);
+            setAppState('ready');
+        } else {
+            // Fallback for local development or if the key is missing.
+            const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+            if (storedKey) {
+                initializeApi(storedKey);
+                setAppState('ready');
+            } else {
+                setAppState('requires_key');
+            }
+        }
+    }, []);
+
+    const handleApiKeySubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const key = localApiKey.trim();
+        if (key) {
+            localStorage.setItem(API_KEY_STORAGE_KEY, key);
+            initializeApi(key);
+            setAppState('ready');
+        }
+    };
+
+    const handleApiKeyInvalid = useCallback(() => {
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        setAppState('requires_key');
     }, []);
 
     const handleChangesProposed = useCallback((changes: CodeChange[]) => {
@@ -100,7 +124,7 @@ const App: React.FC = () => {
                 }
             }
             
-            const zip = new JSZip();
+            const zip = new window.JSZip();
             Object.entries(newSource).forEach(([path, content]) => {
                 zip.file(path, content);
             });
@@ -178,10 +202,62 @@ const App: React.FC = () => {
         alert(`Rollback for ${changeSetId} is not yet implemented.`);
     }, []);
 
+    const handleYouTubePlay = useCallback(async (query: string) => {
+        setAssistantStatus(AssistantStatus.THINKING);
+        const video = await searchYouTube(query);
+        if (video) {
+            setActiveVideo(video);
+            setAssistantStatus(AssistantStatus.IDLE);
+        } else {
+            setAssistantStatus(AssistantStatus.ERROR);
+            setTranscript(prev => ({ ...prev, jarvis: `I'm sorry, I couldn't find any video for "${query}" on YouTube.` }));
+        }
+    }, [setAssistantStatus, setTranscript]);
+
     if (appState === 'loading') {
         return (
             <div className="bg-[#030814] min-h-screen flex items-center justify-center">
                 <ArcReactorIcon className="w-24 h-24 text-cyan-400 animate-[spin_4s_linear_infinite]" />
+            </div>
+        );
+    }
+
+    if (appState === 'requires_key') {
+        return (
+            <div className="bg-[#030814] min-h-screen flex flex-col items-center justify-center p-4 text-center">
+                <BackgroundFX />
+                <div className="relative z-10 jarvis-border bg-[#030814]/80 backdrop-blur-sm p-8 rounded-lg max-w-lg">
+                    <div className="flex items-center space-x-4 mb-6 justify-center">
+                        <ArcReactorIcon className="w-12 h-12 text-cyan-400" />
+                        <div>
+                            <h1 className="text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest font-orbitron">J.A.R.V.I.S.</h1>
+                            <p className="text-sm text-cyan-400/70">System Activation</p>
+                        </div>
+                    </div>
+                    <p className="text-cyan-300/80 mb-6">
+                      Please enter your Google AI Gemini API key to proceed.
+                    </p>
+                    <form onSubmit={handleApiKeySubmit} className="flex flex-col space-y-4">
+                        <input
+                            type="password"
+                            value={localApiKey}
+                            onChange={(e) => setLocalApiKey(e.target.value)}
+                            className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                            placeholder="Enter your Gemini API Key"
+                            required
+                        />
+                        <button
+                            type="submit"
+                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!localApiKey.trim()}
+                        >
+                            Activate System
+                        </button>
+                    </form>
+                    <p className="text-xs text-cyan-500/60 mt-4">
+                        Your key is stored locally and used only for API requests.
+                    </p>
+                </div>
             </div>
         );
     }
@@ -235,7 +311,7 @@ const App: React.FC = () => {
                     setAssistantStatus={setAssistantStatus}
                     setTranscript={setTranscript}
                     setAnalyserNode={setAnalyserNode}
-                    onApiKeyInvalid={() => {}}
+                    onApiKeyInvalid={handleApiKeyInvalid}
                     onChangesProposed={handleChangesProposed}
                     projectFiles={projectFiles}
                     onProjectUpdate={handleProjectUpdate}
@@ -247,8 +323,17 @@ const App: React.FC = () => {
                     isEditorOpen={isEditorOpen}
                     isSettingsOpen={isSettingsOpen}
                     updatePersonality={updatePersonality}
+                    onYouTubePlay={handleYouTubePlay}
                 />
             </footer>
+
+            {activeVideo && (
+                <YouTubePlayer 
+                    videoId={activeVideo.id}
+                    title={activeVideo.title}
+                    onClose={() => setActiveVideo(null)}
+                />
+            )}
 
             <SelfEditorPanel 
                 isOpen={isEditorOpen}
