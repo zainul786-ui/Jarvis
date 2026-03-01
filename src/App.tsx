@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, Settings, Cpu, Zap, Activity, Shield, Database, Wifi, Music, Youtube, Maximize2, Minimize2, X } from 'lucide-react';
+import { Terminal, Settings, Cpu, Shield, Database, Wifi } from 'lucide-react';
 import { VoicePanel, AssistantStatus } from './components/VoicePanel';
-import { useApiKeys, PersonalityMode } from './hooks/useApiKeys';
+import { useApiKeys } from './hooks/useApiKeys';
 import { initializeApi } from './services/gemini';
 import { YouTubePlayer } from './components/YouTubePlayer';
 
@@ -85,9 +85,9 @@ const HUDOverlay = () => (
 export default function App() {
     const [assistantStatus, setAssistantStatus] = useState(AssistantStatus.IDLE);
     const [transcript, setTranscript] = useState({ user: '', jarvis: '' });
-    const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+    const [, setAnalyserNode] = useState<AnalyserNode | null>(null);
     const [activeVideo, setActiveVideo] = useState<{ id: string; title: string } | null>(null);
-    const { apiKeys, updatePersonality } = useApiKeys();
+    const { apiKeys } = useApiKeys();
 
     useEffect(() => {
         if (process.env.GEMINI_API_KEY) {
@@ -96,10 +96,6 @@ export default function App() {
     }, []);
 
     const handleYouTubePlay = useCallback((query: string) => {
-        // Mocking search for now since youtubeService was deleted
-        // In a real scenario, we'd call searchYouTube(query)
-        console.log("Playing song:", query);
-        // For demo purposes, we'll just set a placeholder video ID
         setActiveVideo({ id: 'dQw4w9WgXcQ', title: query });
     }, []);
 
@@ -108,7 +104,6 @@ export default function App() {
             <BackgroundFX />
             <HUDOverlay />
 
-            {/* Central Core Visualizer */}
             <div className="relative z-20 flex flex-col items-center justify-center">
                 <div className="relative w-64 h-64 flex items-center justify-center">
                     <div className="pulse-ring" style={{ animationDelay: '0s' }} />
@@ -150,7 +145,6 @@ export default function App() {
                 </AnimatePresence>
             </div>
 
-            {/* Transcript Display */}
             <div className="absolute bottom-40 left-1/2 -translate-x-1/2 w-full max-w-2xl px-8 z-20">
                 <div className="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-cyan-500/20 max-h-32 overflow-y-auto font-mono text-xs scrollbar-hide">
                     {transcript.jarvis && (
@@ -162,7 +156,6 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Voice Control Panel */}
             <div className="absolute bottom-12 z-30">
                 <VoicePanel 
                     setAssistantStatus={setAssistantStatus}

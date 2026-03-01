@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
-import { Mic, MicOff, Volume2, VolumeX, Terminal, Settings, Cpu, Zap, Activity } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Modality, LiveServerMessage } from "@google/genai";
+import { Mic, MicOff, Zap, Activity } from 'lucide-react';
+import { motion } from 'motion/react';
 import { getAi } from '../services/gemini';
 import { usePersistentMemory } from '../hooks/usePersistentMemory';
 import { PersonalityMode, ApiKeys } from '../hooks/useApiKeys';
@@ -22,7 +22,7 @@ interface VoicePanelProps {
     apiKeys: ApiKeys;
 }
 
-const getSystemInstruction = (mode: PersonalityMode, memory: Record<string, string>) => {
+const getSystemInstruction = (_mode: PersonalityMode, memory: Record<string, string>) => {
     const memoryString = Object.entries(memory).length > 0 
         ? `\n**System Memory (Information you know about Sir):**\n${Object.entries(memory).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`
         : "\n**System Memory:** Currently empty. Use `updateMemory` to store important details Sir mentions.";
@@ -53,18 +53,17 @@ You are currently operating in a mode where you might hear your own voice if the
 export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setTranscript, setAnalyserNode, onYouTubePlay, apiKeys }) => {
     const [isMuted, setIsMuted] = useState(true);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const { memory, updateMemoryValue } = usePersistentMemory();
+    const { memory } = usePersistentMemory();
     
     const audioContextRef = useRef<AudioContext | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const processorRef = useRef<ScriptProcessorNode | null>(null);
     const sessionPromise = useRef<Promise<any> | null>(null);
     const transcriptRef = useRef({ user: '', jarvis: '' });
-    const isModelSpeakingRef = useRef(false); // CRITICAL: Track if model is currently speaking
+    const isModelSpeakingRef = useRef(false);
 
     const stopPlayback = useCallback(() => {
         if (audioContextRef.current) {
-            // Logic to stop current audio queue if needed
         }
     }, []);
 
@@ -78,7 +77,6 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                 bytes[i] = binaryString.charCodeAt(i);
             }
             
-            // Assuming 16kHz mono PCM from Gemini
             const audioBuffer = audioContextRef.current.createBuffer(1, bytes.length / 2, 16000);
             const channelData = audioBuffer.getChannelData(0);
             const view = new DataView(bytes.buffer);
@@ -91,11 +89,10 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
             source.connect(audioContextRef.current.destination);
             
             setIsSpeaking(true);
-            isModelSpeakingRef.current = true; // Set speaking flag
+            isModelSpeakingRef.current = true;
             setAssistantStatus(AssistantStatus.SPEAKING);
             
             source.onended = () => {
-                // Small delay before allowing mic input again to avoid capturing tail-end echo
                 setTimeout(() => {
                     isModelSpeakingRef.current = false;
                     setIsSpeaking(false);
@@ -123,20 +120,21 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                 onmessage: async (message: LiveServerMessage) => {
                     if (message.serverContent?.modelTurn) {
                         const parts = message.serverContent.modelTurn.parts;
-                        for (const part of parts) {
-                            if (part.inlineData) {
-                                playAudio(part.inlineData.data);
-                            }
-                            if (part.text) {
-                                // Handle JSON intents
-                                if (part.text.includes('"action": "play_song"')) {
-                                    try {
-                                        const data = JSON.parse(part.text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-                                        if (data.action === 'play_song') onYouTubePlay(data.query);
-                                    } catch(e) {}
+                        if (parts) {
+                            for (const part of parts) {
+                                if (part.inlineData?.data) {
+                                    playAudio(part.inlineData.data);
                                 }
-                                transcriptRef.current.jarvis += part.text;
-                                setTranscript({ ...transcriptRef.current });
+                                if (part.text) {
+                                    if (part.text.includes('"action": "play_song"')) {
+                                        try {
+                                            const data = JSON.parse(part.text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+                                            if (data.action === 'play_song') onYouTubePlay(data.query);
+                                        } catch(e) {}
+                                    }
+                                    transcriptRef.current.jarvis += part.text;
+                                    setTranscript({ ...transcriptRef.current });
+                                }
                             }
                         }
                     }
@@ -185,8 +183,6 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
             processorRef.current.connect(audioContextRef.current.destination);
             
             processorRef.current.onaudioprocess = (e) => {
-                // CRITICAL FIX: If model is speaking, do NOT send microphone data to the server
-                // This prevents J.A.R.V.I.S. from hearing himself through the speakers.
                 if (isModelSpeakingRef.current) return;
 
                 const inputData = e.inputBuffer.getChannelData(0);

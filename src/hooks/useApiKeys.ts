@@ -20,7 +20,7 @@ export interface ApiKeys {
 
 const initialApiKeys: ApiKeys = {
     googleSearch: { key: '', enabled: false },
-    youtube: { key: 'AIzaSyBKOpEDAbtWrtFs-BYE9AnJ5zMiyBQoZlg', enabled: true },
+    youtube: { key: import.meta.env.VITE_YOUTUBE_API_KEY || '', enabled: !!import.meta.env.VITE_YOUTUBE_API_KEY },
     spotify: { key: '', enabled: false },
     huggingFace: { key: '', enabled: false },
     newsApi: { key: '', enabled: false },
