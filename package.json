@@ -5,28 +5,30 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "^1.29.1",
     "@tailwindcss/vite": "^4.2.1",
-    "axios": "^1.6.7",
-    "lucide-react": "^0.344.0",
-    "motion": "^11.0.8",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-youtube": "^10.1.0"
+    "axios": "^1.13.6",
+    "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.575.0",
+    "motion": "^12.34.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-youtube": "^10.1.0",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.56",
-    "@types/react-dom": "^18.2.19",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.4"
+    "@types/jszip": "^3.4.0",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }

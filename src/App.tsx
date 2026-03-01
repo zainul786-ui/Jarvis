@@ -1,170 +1,332 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, Settings, Cpu, Shield, Database, Wifi } from 'lucide-react';
-import { VoicePanel, AssistantStatus } from './components/VoicePanel';
+
+import JSZip from 'jszip';
+import React, { useState, useEffect, useCallback } from 'react';
+import { VoicePanel } from './components/VoicePanel';
+import { ArcReactorIcon } from './components/Icons';
+import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext, PersonalityMode } from './types';
+import { VoiceVisualizer } from './components/JarvisVisualizer';
+import { SelfEditorPanel } from './components/SelfEditorPanel';
+import { WebPanel } from './components/WebPanel';
+import { useVersionControl } from './hooks/useVersionControl';
+import { getProjectSourceCode } from './utils/sourceCode';
 import { useApiKeys } from './hooks/useApiKeys';
+import { SettingsPanel } from './components/SettingsPanel';
+import { HolographicPanel } from './components/HolographicPanel';
 import { initializeApi } from './services/gemini';
 import { YouTubePlayer } from './components/YouTubePlayer';
+import { searchYouTube, YouTubeVideo } from './services/youtubeService';
 
 const BackgroundFX = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,211,238,0.1),transparent_70%)]" />
-        <div className="scanline" />
-        <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(0,194,255,0.1)_0,_transparent_60%)]"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%2width=%2240%22%20height=%2240%22%20viewBox=%220%200%2040%2040%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg%20fill=%22%2300c2ff%22%20fill-opacity=%220.05%22%20fill-rule=%22evenodd%22%3E%3Cpath%20d=%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22/%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
     </div>
 );
 
-const HUDOverlay = () => (
-    <div className="absolute inset-0 pointer-events-none z-10 p-8 flex flex-col justify-between border-[20px] border-cyan-500/5 rounded-[40px] m-4">
-        <div className="flex justify-between items-start">
-            <div className="flex flex-col space-y-4">
-                <div className="flex items-center space-x-3 bg-cyan-500/10 p-3 rounded-lg border border-cyan-500/20 backdrop-blur-md">
-                    <Shield className="w-5 h-5 text-cyan-400 animate-pulse" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-widest text-cyan-400/70 font-orbitron">System Status</span>
-                        <span className="text-xs font-bold text-cyan-300">SECURE / ACTIVE</span>
-                    </div>
-                </div>
-                <div className="flex items-center space-x-3 bg-cyan-500/10 p-3 rounded-lg border border-cyan-500/20 backdrop-blur-md">
-                    <Database className="w-5 h-5 text-cyan-400" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-widest text-cyan-400/70 font-orbitron">Memory Core</span>
-                        <span className="text-xs font-bold text-cyan-300">SYNCED / 100%</span>
-                    </div>
-                </div>
-            </div>
-            <div className="flex flex-col items-end space-y-4">
-                <div className="flex items-center space-x-3 bg-cyan-500/10 p-3 rounded-lg border border-cyan-500/20 backdrop-blur-md">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[10px] uppercase tracking-widest text-cyan-400/70 font-orbitron">Network</span>
-                        <span className="text-xs font-bold text-cyan-300">ENCRYPTED</span>
-                    </div>
-                    <Wifi className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-400/50 font-orbitron">Protocol</p>
-                    <p className="text-lg font-black text-cyan-300 jarvis-glow font-orbitron">J.A.R.V.I.S. v2.5</p>
-                </div>
-            </div>
-        </div>
-        <div className="flex justify-between items-end">
-            <div className="flex space-x-8">
-                <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-widest text-cyan-400/50 font-orbitron">CPU LOAD</span>
-                    <div className="w-32 h-1 bg-cyan-900 rounded-full mt-1 overflow-hidden">
-                        <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: '45%' }}
-                            className="h-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
-                        />
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-widest text-cyan-400/50 font-orbitron">THERMAL</span>
-                    <div className="w-32 h-1 bg-cyan-900 rounded-full mt-1 overflow-hidden">
-                        <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: '32%' }}
-                            className="h-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
-                        />
-                    </div>
-                </div>
-            </div>
-            <div className="flex space-x-4">
-                <div className="w-12 h-12 rounded-full border border-cyan-500/30 flex items-center justify-center bg-cyan-500/5">
-                    <Settings className="w-5 h-5 text-cyan-400/70" />
-                </div>
-                <div className="w-12 h-12 rounded-full border border-cyan-500/30 flex items-center justify-center bg-cyan-500/5">
-                    <Terminal className="w-5 h-5 text-cyan-400/70" />
-                </div>
-            </div>
-        </div>
-    </div>
-);
+type AppState = 'loading' | 'requires_key' | 'ready';
+const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
-export default function App() {
-    const [assistantStatus, setAssistantStatus] = useState(AssistantStatus.IDLE);
-    const [transcript, setTranscript] = useState({ user: '', jarvis: '' });
-    const [, setAnalyserNode] = useState<AnalyserNode | null>(null);
-    const [activeVideo, setActiveVideo] = useState<{ id: string; title: string } | null>(null);
-    const { apiKeys } = useApiKeys();
+const App: React.FC = () => {
+    const [appState, setAppState] = useState<AppState>('loading');
+    const [assistantStatus, setAssistantStatus] = useState<AssistantStatus>(AssistantStatus.IDLE);
+    const [transcript, setTranscript] = useState<Transcript>({ user: '', jarvis: '' });
+    const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+    const [projectFiles, setProjectFiles] = useState<Record<string, string> | null>(null);
+    const [systemContext, setSystemContext] = useState<SystemContext>('IDLE');
+    const [localApiKey, setLocalApiKey] = useState('');
+
+    // Self-development state
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [proposedChanges, setProposedChanges] = useState<CodeChange[]>([]);
+    const { history, addChangeSet } = useVersionControl();
+    
+    // Settings state
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isHolographicPanelOpen, setIsHolographicPanelOpen] = useState(false);
+    const { apiKeys, updateApiKeys, updatePersonality } = useApiKeys();
+    const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
 
     useEffect(() => {
+        // The platform provides the Gemini API key in process.env.GEMINI_API_KEY.
+        // We initialize with it if it's available.
         if (process.env.GEMINI_API_KEY) {
             initializeApi(process.env.GEMINI_API_KEY);
+            setAppState('ready');
+        } else {
+            // Fallback for local development or if the key is missing.
+            const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+            if (storedKey) {
+                initializeApi(storedKey);
+                setAppState('ready');
+            } else {
+                setAppState('requires_key');
+            }
         }
     }, []);
 
-    const handleYouTubePlay = useCallback((query: string) => {
-        setActiveVideo({ id: 'dQw4w9WgXcQ', title: query });
+    const handleApiKeySubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const key = localApiKey.trim();
+        if (key) {
+            localStorage.setItem(API_KEY_STORAGE_KEY, key);
+            initializeApi(key);
+            setAppState('ready');
+        }
+    };
+
+    const handleApiKeyInvalid = useCallback(() => {
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        setAppState('requires_key');
     }, []);
 
-    return (
-        <div className="relative w-screen h-screen bg-[#030814] overflow-hidden flex flex-col items-center justify-center font-sans text-cyan-50">
-            <BackgroundFX />
-            <HUDOverlay />
+    const handleChangesProposed = useCallback((changes: CodeChange[]) => {
+        setProposedChanges(changes);
+        setIsEditorOpen(true);
+    }, []);
 
-            <div className="relative z-20 flex flex-col items-center justify-center">
-                <div className="relative w-64 h-64 flex items-center justify-center">
-                    <div className="pulse-ring" style={{ animationDelay: '0s' }} />
-                    <div className="pulse-ring" style={{ animationDelay: '0.5s' }} />
-                    <div className="pulse-ring" style={{ animationDelay: '1s' }} />
-                    
-                    <motion.div 
-                        animate={{ 
-                            scale: assistantStatus === AssistantStatus.SPEAKING ? [1, 1.1, 1] : 1,
-                            rotate: 360
-                        }}
-                        transition={{ 
-                            scale: { repeat: Infinity, duration: 2 },
-                            rotate: { repeat: Infinity, duration: 20, ease: 'linear' }
-                        }}
-                        className="w-48 h-48 rounded-full border-4 border-cyan-500/40 border-t-cyan-400 flex items-center justify-center shadow-[0_0_50px_rgba(34,211,238,0.3)] bg-cyan-500/5 backdrop-blur-sm"
-                    >
-                        <div className="w-32 h-32 rounded-full border-2 border-cyan-500/20 flex items-center justify-center">
-                            <Cpu className={`w-12 h-12 ${assistantStatus === AssistantStatus.SPEAKING ? 'text-cyan-400 animate-pulse' : 'text-cyan-600'}`} />
-                        </div>
-                    </motion.div>
-                </div>
+    const handleProjectUpdate = useCallback((files: Record<string, string>) => {
+        setProjectFiles(files);
+        setSystemContext('CODING_WEBSITE');
+    }, []);
+    
+    const handleCloseWebStudio = useCallback(() => {
+        setProjectFiles(null);
+        setSystemContext('IDLE');
+        setIsHolographicPanelOpen(false); // Also close holo panel
+    }, []);
+
+    const handleOpenSettings = useCallback(() => {
+        setIsSettingsOpen(true);
+    }, []);
+
+    const handleCloseSettings = useCallback(() => {
+        setIsSettingsOpen(false);
+    }, []);
+
+    const handleOpenHolographicPanel = useCallback(() => {
+        if (systemContext === 'CODING_WEBSITE') {
+            setIsHolographicPanelOpen(true);
+        }
+    }, [systemContext]);
+
+    const downloadChangesAsZip = useCallback(async () => {
+        if (proposedChanges.length === 0) return;
+        try {
+            const currentSource = await getProjectSourceCode();
+            const newSource = { ...currentSource };
+    
+            for (const change of proposedChanges) {
+                if (change.type === 'DELETE') {
+                    delete newSource[change.file];
+                } else { // CREATE or UPDATE
+                    if (change.content !== null) {
+                        newSource[change.file] = change.content;
+                    }
+                }
+            }
+            
+            const zip = new JSZip();
+            Object.entries(newSource).forEach(([path, content]) => {
+                zip.file(path, content);
+            });
+    
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'jarvis-update.zip';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+            const newChangeSet: ChangeSet = {
+                id: `cs-${Date.now()}`,
+                timestamp: Date.now(),
+                summary: proposedChanges.map((c: CodeChange) => c.description).join(', ') || "System Update",
+                changes: proposedChanges,
+            };
+            addChangeSet(newChangeSet);
+            
+            setProposedChanges([]);
+            setIsEditorOpen(false);
+            alert("The self-update API is not available. The update has been downloaded as 'jarvis-update.zip'. Please apply the changes manually and reload the application.");
+        } catch (error) {
+            console.error("Failed to package changes:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during code generation.";
+            alert(`An error occurred while packaging the changes: ${errorMessage}`);
+        }
+    }, [proposedChanges, addChangeSet]);
+
+    const handleApproveChanges = useCallback(async () => {
+        if (proposedChanges.length === 0) return;
+        
+        const canSelfUpdate = typeof (window as any).aistudio?.project?.update === 'function';
+
+        if (canSelfUpdate && (window as any).aistudio?.project) {
+            try {
+                const filesToUpdate = proposedChanges.map((change: CodeChange) => ({
+                    path: change.file,
+                    content: change.content,
+                }));
+
+                await (window as any).aistudio.project.update({ files: filesToUpdate });
+
+                const newChangeSet: ChangeSet = {
+                    id: `cs-${Date.now()}`,
+                    timestamp: Date.now(),
+                    summary: proposedChanges.map((c: CodeChange) => c.description).join(', ') || "System Update",
+                    changes: proposedChanges,
+                };
+                addChangeSet(newChangeSet);
                 
-                <AnimatePresence mode="wait">
-                    <motion.div 
-                        key={assistantStatus}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="mt-8 text-center"
-                    >
-                        <h1 className="text-3xl font-black uppercase tracking-[0.4em] jarvis-glow font-orbitron text-cyan-300">
-                            {assistantStatus === AssistantStatus.IDLE ? 'Standby' : assistantStatus}
-                        </h1>
-                        <p className="text-xs text-cyan-400/60 uppercase tracking-widest mt-2 font-orbitron">
-                            {assistantStatus === AssistantStatus.IDLE ? 'Awaiting Command' : 'Processing Interface'}
-                        </p>
-                    </motion.div>
-                </AnimatePresence>
-            </div>
+                setProposedChanges([]);
+                setIsEditorOpen(false);
+                alert("J.A.R.V.I.S. has been successfully updated. The application will now reload to apply the changes.");
+                window.location.reload();
+            } catch (error) {
+                console.error("Self-update failed, falling back to download:", error);
+                await downloadChangesAsZip();
+            }
+        } else {
+            console.warn("Self-update API not found, falling back to download.");
+            await downloadChangesAsZip();
+        }
+    }, [proposedChanges, addChangeSet, downloadChangesAsZip]);
+    
+    const handleRejectChanges = useCallback(() => {
+        setProposedChanges([]);
+        setIsEditorOpen(false);
+    }, []);
+    
+    const handleRollback = useCallback((changeSetId: string) => {
+        // TODO: Implement rollback logic
+        alert(`Rollback for ${changeSetId} is not yet implemented.`);
+    }, []);
 
-            <div className="absolute bottom-40 left-1/2 -translate-x-1/2 w-full max-w-2xl px-8 z-20">
-                <div className="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-cyan-500/20 max-h-32 overflow-y-auto font-mono text-xs scrollbar-hide">
-                    {transcript.jarvis && (
-                        <div className="text-cyan-300 mb-2">
-                            <span className="text-cyan-500/70 font-bold mr-2">JARVIS:</span>
-                            {transcript.jarvis}
+    const handleYouTubePlay = useCallback(async (query: string) => {
+        setAssistantStatus(AssistantStatus.THINKING);
+        const video = await searchYouTube(query);
+        if (video) {
+            setActiveVideo(video);
+            setAssistantStatus(AssistantStatus.IDLE);
+        } else {
+            setAssistantStatus(AssistantStatus.ERROR);
+            setTranscript((prev: Transcript) => ({ ...prev, jarvis: `I'm sorry, I couldn't find any video for "${query}" on YouTube.` }));
+        }
+    }, [setAssistantStatus, setTranscript]);
+
+    if (appState === 'loading') {
+        return (
+            <div className="bg-[#030814] min-h-screen flex items-center justify-center">
+                <ArcReactorIcon className="w-24 h-24 text-cyan-400 animate-[spin_4s_linear_infinite]" />
+            </div>
+        );
+    }
+
+    if (appState === 'requires_key') {
+        return (
+            <div className="bg-[#030814] min-h-screen flex flex-col items-center justify-center p-4 text-center">
+                <BackgroundFX />
+                <div className="relative z-10 jarvis-border bg-[#030814]/80 backdrop-blur-sm p-8 rounded-lg max-w-lg">
+                    <div className="flex items-center space-x-4 mb-6 justify-center">
+                        <ArcReactorIcon className="w-12 h-12 text-cyan-400" />
+                        <div>
+                            <h1 className="text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest font-orbitron">J.A.R.V.I.S.</h1>
+                            <p className="text-sm text-cyan-400/70">System Activation</p>
                         </div>
-                    )}
+                    </div>
+                    <p className="text-cyan-300/80 mb-6">
+                      Please enter your Google AI Gemini API key to proceed.
+                    </p>
+                    <form onSubmit={handleApiKeySubmit} className="flex flex-col space-y-4">
+                        <input
+                            type="password"
+                            value={localApiKey}
+                            onChange={(e) => setLocalApiKey(e.target.value)}
+                            className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                            placeholder="Enter your Gemini API Key"
+                            required
+                        />
+                        <button
+                            type="submit"
+                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!localApiKey.trim()}
+                        >
+                            Activate System
+                        </button>
+                    </form>
+                    <p className="text-xs text-cyan-500/60 mt-4">
+                        Your key is stored locally and used only for API requests.
+                    </p>
                 </div>
             </div>
+        );
+    }
+    
+    return (
+        <div className={`bg-[#030814] min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 transition-opacity duration-1000 opacity-100`}>
+            <BackgroundFX />
 
-            <div className="absolute bottom-12 z-30">
-                <VoicePanel 
+            {/* Main Content Area */}
+            <main className="relative z-10 w-full h-[calc(100vh-1rem)] max-w-7xl mx-auto flex flex-col flex-grow pb-28">
+                 {projectFiles ? (
+                    <WebPanel files={projectFiles} onClose={handleCloseWebStudio} />
+                 ) : (
+                    <>
+                        <header className="flex-shrink-0 p-4 flex justify-end items-start">
+                            <div className="text-right">
+                                <h1 className="font-orbitron text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest">J.A.R.V.I.S.</h1>
+                                <p className="text-sm text-cyan-400/70">HUD Active</p>
+                            </div>
+                        </header>
+                        <div className="flex-grow flex flex-col items-center justify-center relative">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
+                                <div className="h-40 flex items-end">
+                                    {transcript.jarvis && (
+                                        <p className="text-2xl sm:text-3xl md:text-4xl text-cyan-200 jarvis-glow font-light animate-[fadeIn_0.5s_ease-out]">
+                                            {transcript.jarvis}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="h-40 flex items-start pt-8">
+                                    {transcript.user && (
+                                        <p className="text-lg sm:text-xl text-cyan-400/80 italic animate-[fadeIn_0.5s_ease-out]">
+                                            {transcript.user}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                 )}
+            </main>
+
+            {/* Global Visualizer - always in the center */}
+            <div className="absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none z-20">
+                 <VoiceVisualizer analyserNode={analyserNode} status={assistantStatus} />
+            </div>
+
+            {/* Global Voice Panel - always at the bottom */}
+            <footer className="fixed bottom-0 left-0 right-0 z-30 flex justify-center p-4">
+                 <VoicePanel
                     setAssistantStatus={setAssistantStatus}
                     setTranscript={setTranscript}
                     setAnalyserNode={setAnalyserNode}
-                    onYouTubePlay={handleYouTubePlay}
+                    onApiKeyInvalid={handleApiKeyInvalid}
+                    onChangesProposed={handleChangesProposed}
+                    projectFiles={projectFiles}
+                    onProjectUpdate={handleProjectUpdate}
+                    systemContext={systemContext}
+                    setSystemContext={setSystemContext}
+                    onOpenSettings={handleOpenSettings}
+                    onOpenHolographicPanel={handleOpenHolographicPanel}
                     apiKeys={apiKeys}
+                    isEditorOpen={isEditorOpen}
+                    isSettingsOpen={isSettingsOpen}
+                    updatePersonality={updatePersonality}
+                    onYouTubePlay={handleYouTubePlay}
                 />
-            </div>
+            </footer>
 
             {activeVideo && (
                 <YouTubePlayer 
@@ -173,6 +335,29 @@ export default function App() {
                     onClose={() => setActiveVideo(null)}
                 />
             )}
+
+            <SelfEditorPanel 
+                isOpen={isEditorOpen}
+                proposedChanges={proposedChanges}
+                history={history}
+                onApprove={handleApproveChanges}
+                onReject={handleRejectChanges}
+                onRollback={handleRollback}
+            />
+
+            <SettingsPanel
+                isOpen={isSettingsOpen}
+                onClose={handleCloseSettings}
+                apiKeys={apiKeys}
+                onSave={updateApiKeys}
+            />
+
+            <HolographicPanel 
+                isOpen={isHolographicPanelOpen}
+                onClose={() => setIsHolographicPanelOpen(false)}
+            />
         </div>
     );
-}
+};
+
+export default App;
