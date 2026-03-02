@@ -144,7 +144,7 @@ export const generateSpeech = async (text: string): Promise<string | null> => {
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
-            contents: [{ parts: [{ text: `Say cheerfully: ${text}` }] }],
+            contents: [{ parts: [{ text: `Speak in a calm, confident, and sophisticated J.A.R.V.I.S. tone: ${text}` }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {

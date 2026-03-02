@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Maximize2, Minimize2, Music, Youtube } from 'lucide-react';

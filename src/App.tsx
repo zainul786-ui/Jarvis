@@ -2,8 +2,8 @@
 import JSZip from 'jszip';
 import React, { useState, useEffect, useCallback } from 'react';
 import { VoicePanel } from './components/VoicePanel';
-import { ArcReactorIcon } from './components/Icons';
-import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext, PersonalityMode } from './types';
+import { ArcReactorIcon, SettingsIcon } from './components/Icons';
+import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext } from './types';
 import { VoiceVisualizer } from './components/JarvisVisualizer';
 import { SelfEditorPanel } from './components/SelfEditorPanel';
 import { WebPanel } from './components/WebPanel';
@@ -33,7 +33,8 @@ const App: React.FC = () => {
     const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
     const [projectFiles, setProjectFiles] = useState<Record<string, string> | null>(null);
     const [systemContext, setSystemContext] = useState<SystemContext>('IDLE');
-    const [localApiKey, setLocalApiKey] = useState('');
+    const [localGeminiKey, setLocalGeminiKey] = useState('');
+    const [localYouTubeKey, setLocalYouTubeKey] = useState('');
 
     // Self-development state
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -47,6 +48,13 @@ const App: React.FC = () => {
     const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
 
     useEffect(() => {
+        if (apiKeys.gemini.key && apiKeys.gemini.enabled) {
+            initializeApi(apiKeys.gemini.key);
+            setAppState('ready');
+        }
+    }, [apiKeys.gemini.key, apiKeys.gemini.enabled]);
+
+    useEffect(() => {
         // The platform provides the Gemini API key in process.env.GEMINI_API_KEY.
         // We initialize with it if it's available.
         if (process.env.GEMINI_API_KEY) {
@@ -58,7 +66,7 @@ const App: React.FC = () => {
             if (storedKey) {
                 initializeApi(storedKey);
                 setAppState('ready');
-            } else {
+            } else if (!apiKeys.gemini.key) {
                 setAppState('requires_key');
             }
         }
@@ -66,10 +74,17 @@ const App: React.FC = () => {
 
     const handleApiKeySubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const key = localApiKey.trim();
-        if (key) {
-            localStorage.setItem(API_KEY_STORAGE_KEY, key);
-            initializeApi(key);
+        const gKey = localGeminiKey.trim();
+        const yKey = localYouTubeKey.trim();
+        
+        if (gKey) {
+            const newKeys = {
+                ...apiKeys,
+                gemini: { key: gKey, enabled: true },
+                youtube: { key: yKey, enabled: !!yKey }
+            };
+            updateApiKeys(newKeys);
+            initializeApi(gKey);
             setAppState('ready');
         }
     };
@@ -205,7 +220,7 @@ const App: React.FC = () => {
 
     const handleYouTubePlay = useCallback(async (query: string) => {
         setAssistantStatus(AssistantStatus.THINKING);
-        const video = await searchYouTube(query);
+        const video = await searchYouTube(query, apiKeys.youtube.enabled ? apiKeys.youtube.key : undefined);
         if (video) {
             setActiveVideo(video);
             setAssistantStatus(AssistantStatus.IDLE);
@@ -213,7 +228,7 @@ const App: React.FC = () => {
             setAssistantStatus(AssistantStatus.ERROR);
             setTranscript((prev: Transcript) => ({ ...prev, jarvis: `I'm sorry, I couldn't find any video for "${query}" on YouTube.` }));
         }
-    }, [setAssistantStatus, setTranscript]);
+    }, [apiKeys.youtube.enabled, apiKeys.youtube.key, setAssistantStatus, setTranscript]);
 
     if (appState === 'loading') {
         return (
@@ -236,21 +251,34 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     <p className="text-cyan-300/80 mb-6">
-                      Please enter your Google AI Gemini API key to proceed.
+                      Please enter your API keys to activate J.A.R.V.I.S.
                     </p>
                     <form onSubmit={handleApiKeySubmit} className="flex flex-col space-y-4">
-                        <input
-                            type="password"
-                            value={localApiKey}
-                            onChange={(e) => setLocalApiKey(e.target.value)}
-                            className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                            placeholder="Enter your Gemini API Key"
-                            required
-                        />
+                        <div className="space-y-1 text-left">
+                            <label className="text-xs text-cyan-400/70 uppercase tracking-widest ml-1">Gemini API Key (Required)</label>
+                            <input
+                                type="password"
+                                value={localGeminiKey}
+                                onChange={(e) => setLocalGeminiKey(e.target.value)}
+                                className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                                placeholder="Enter Gemini Key"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1 text-left">
+                            <label className="text-xs text-cyan-400/70 uppercase tracking-widest ml-1">YouTube API Key (Optional)</label>
+                            <input
+                                type="password"
+                                value={localYouTubeKey}
+                                onChange={(e) => setLocalYouTubeKey(e.target.value)}
+                                className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                                placeholder="Enter YouTube Key"
+                            />
+                        </div>
                         <button
                             type="submit"
-                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={!localApiKey.trim()}
+                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                            disabled={!localGeminiKey.trim()}
                         >
                             Activate System
                         </button>
@@ -273,7 +301,14 @@ const App: React.FC = () => {
                     <WebPanel files={projectFiles} onClose={handleCloseWebStudio} />
                  ) : (
                     <>
-                        <header className="flex-shrink-0 p-4 flex justify-end items-start">
+                        <header className="flex-shrink-0 p-4 flex justify-between items-start">
+                            <button 
+                                onClick={handleOpenSettings}
+                                className="p-2 rounded-full jarvis-border bg-[#030814]/50 text-cyan-400 hover:text-white transition-all duration-300 pointer-events-auto"
+                                title="Settings"
+                            >
+                                <SettingsIcon className="w-6 h-6" />
+                            </button>
                             <div className="text-right">
                                 <h1 className="font-orbitron text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest">J.A.R.V.I.S.</h1>
                                 <p className="text-sm text-cyan-400/70">HUD Active</p>

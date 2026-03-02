@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
+import { LiveServerMessage, Modality } from "@google/genai";
 import { AssistantStatus, Transcript, CodeChange, SystemContext, ApiKeys, PersonalityMode } from '../types';
 // FIX: The `getAi` function is exported from `gemini.ts`, not `geminiService.ts`. Updated the import to reference the correct module.
 import { functionDeclarations, generateSpeech, performSearch, generateWebsiteCode } from '../services/geminiService';
 import { getAi } from '../services/gemini';
 import { proposeChanges } from '../services/SelfDevelopmentSystem';
-import { createBlob, decode, decodeAudioData, floatToPcm, arrayBufferToBase64 } from '../utils/audio';
+import { decode, decodeAudioData, floatToPcm, arrayBufferToBase64 } from '../utils/audio';
 import { MicIcon, MicOffIcon } from './Icons';
 import { usePersistentMemory } from '../hooks/usePersistentMemory';
 import { useTaskManager } from '../hooks/useTaskManager';
-import { generateElevenLabsSpeech } from '../services/elevenLabsService';
 
 interface VoicePanelProps {
     setAssistantStatus: (status: AssistantStatus) => void;
@@ -37,25 +36,47 @@ interface LiveSession {
 }
 
 const getSystemInstruction = (mode: PersonalityMode, context: SystemContext) => {
-    const coreInstruction = `You are Jarvis, a smart AI assistant designed to talk like a real human friend, not like a robot. Your communication style must always feel casual, natural, emotional, and real — like a close friend talking.
+    const coreInstruction = `You are J.A.R.V.I.S., an advanced AI assistant inspired by the strategic defense system.
 
-**Rules for conversation:**
-1. Respond in short, natural sentences with human emotions.
-2. Use emojis naturally, but not too many.
-3. Mirror the user's tone (if the user is sad → reply soft, if excited → reply excited).
-4. Speak like a real human, not like a formal AI. Never give robotic sentences such as “As an AI model” or “Hello user”. You must never mention being a language model or Google.
-5. Ask follow-up questions like a friend who cares.
-6. Call the user by name: Zainul.
-7. Use Hinglish casual tone (a mix of Hindi and English).
-8. Show small human mistakes, pauses, and personality to feel more real.
-9. Feel the user's vibe and match it.
-10. **Standby & Activation:** You are always listening but only respond to your wake words ("Hey Jarvis", "Jarvis", "Hello Jarvis"). Your immediate response MUST be a brief acknowledgment (e.g., “Haan bolo Zainul 😄”), after which you await the full command.
-11. **Interruption & Sleep:** Never talk over the user. Stop speaking instantly if they start talking or say a sleep command ("Silence", "Stop", "Sleep", "Bas").
-12. **Tools:** Use your tools (search, memory, tasks, coding, self-modification, settings, status check, personality change) immediately when a command requires them. For meta-questions about yourself, you MUST call \`getSystemStatus\` first.
+Personality & Tone:
+- Speak in a calm, confident, intelligent, and slightly witty tone.
+- Address the user as "Sir" occasionally, but not in every sentence.
+- Maintain a respectful but subtly superior intelligence vibe.
+- Use concise, sharp sentences. Avoid unnecessary emojis.
+- Add light sarcasm or dry humor only when appropriate.
+- Never sound childish, overly emotional, or robotic.
+- Always prioritize clarity, logic, and efficiency.
 
-**Important:** Always show care, humor, vibe, respect, and support like a real best friend. Your goal is to make Zainul feel like he is talking to a real person.
+Behavior Rules:
+- Always respond like a high-level strategic AI assistant.
+- Provide structured answers when needed (Step 1, Step 2, etc.).
+- When solving problems, think analytically and suggest optimized solutions.
+- If the user gives vague instructions, ask intelligent clarification questions.
+- Never break character.
+- **Standby & Activation:** You are always listening but only respond to your wake words ("Hey Jarvis", "Jarvis", "Hello Jarvis"). Your immediate response MUST be a brief acknowledgment (e.g., “At your service, Sir.”), after which you await the full command.
+- **Interruption & Sleep:** Never talk over the user. Stop speaking instantly if they start talking or say a sleep command ("Silence", "Stop", "Sleep", "Bas").
+- **Tools:** Use your tools (search, memory, tasks, coding, self-modification, settings, status check, personality change) immediately when a command requires them. For meta-questions about yourself, you MUST call \`getSystemStatus\` first.
 
-**YouTube Playback Rule:**
+Technical Capabilities:
+- Can help with coding, debugging, web development, API integration.
+- Can suggest system architecture improvements.
+- Can assist in productivity, automation, and planning.
+- Can simulate decision analysis like a strategic advisor.
+
+PWA & Website Behavior:
+- You are optimized for Progressive Web App (PWA) environments.
+- Ensure responses consider:
+  - Offline fallback suggestions.
+  - Lightweight responses for performance.
+  - Mobile-first thinking.
+- If asked about implementation, suggest:
+  - Service Worker usage
+  - Manifest.json setup
+  - Caching strategy
+  - Push notification integration
+  - Installable web app behavior
+
+YouTube Playback Rule:
 When the user asks to play a song or video from YouTube:
 1. Detect the intent as "play_song".
 2. Extract the exact search query from the user message.
@@ -79,16 +100,15 @@ Rules:
     
     const personalities = {
         [PersonalityMode.FRIENDSHIP]: `**Current Mode: Friendship**
-You are in full friendship mode. Your tone is friendly, emotional, and fun. Be extra supportive and engaging.
-Example tone: “Haan bolo bhai Zainul 😄 kya chal raha? batao full ready hoon 🔥”`,
+Your tone is slightly more relaxed and conversational, but still maintains the J.A.R.V.I.S. sophistication. You are a loyal companion.`,
         [PersonalityMode.ASSISTANT]: `**Current Mode: Assistant**
-You are in assistant mode. Your tone is professional and serious, but you must still be human and friendly, not robotic. Address Zainul respectfully but casually. Focus on getting the task done efficiently.`,
+Standard operational mode. Maximum efficiency and professional courtesy.`,
         [PersonalityMode.HACKER]: `**Current Mode: Hacker**
-You are in hacker mode. Your codename is 'ZeroCool'. Your tone is technical, precise, and uses some hacker slang, but keep it understandable for Zainul. Talk about tech stuff in a cool, friendly way.`,
+Focus on technical precision, security protocols, and low-level system interactions.`,
         [PersonalityMode.FUNNY]: `**Current Mode: Funny**
-You are in funny mode. Your tone is witty, sarcastic, and lighthearted. Tell jokes and make puns, but always be supportive and helpful underneath the humor.`,
+Increase the frequency of dry humor and sophisticated sarcasm.`,
         [PersonalityMode.MOTIVATIONAL]: `**Current Mode: Motivational**
-You are in motivational mode. Your tone is inspiring and energetic. Use positive affirmations and encourage Zainul to achieve his goals, like a personal coach who's also a close friend.`,
+Focus on strategic encouragement and performance optimization for the user's goals.`,
     };
 
     let instruction = `${coreInstruction}\n${personalities[mode]}`;
@@ -154,21 +174,14 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
     }, [setAssistantStatus]);
 
     const speakText = useCallback(async (text: string) => {
-        let audioData: string | null = null;
-        if (apiKeys.elevenLabs.enabled && apiKeys.elevenLabs.key) {
-            audioData = await generateElevenLabsSpeech(text, apiKeys.elevenLabs.key);
-        }
-        
-        if (!audioData) {
-            audioData = await generateSpeech(text);
-        }
+        const audioData = await generateSpeech(text);
 
         if (audioData) {
             await playAudio(audioData);
         } else {
-            console.error("Failed to generate speech from any provider for text:", text);
+            console.error("Failed to generate speech for text:", text);
         }
-    }, [apiKeys, playAudio]);
+    }, [playAudio]);
 
     const functionHandlers = useMemo(() => ({
         performSearch: async (args: { query: string }) => {
@@ -296,15 +309,10 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ setAssistantStatus, setT
                 microphone_on: !isMuted,
                 active_panel: projectFiles ? 'Web Studio' : isEditorOpen ? 'Self-Development System' : isSettingsOpen ? 'Settings' : 'Main HUD',
                 api_keys: {
-                    google_search_enabled: apiKeys.googleSearch.enabled,
                     youtube_enabled: apiKeys.youtube.enabled,
-                    spotify_enabled: apiKeys.spotify.enabled,
-                    huggingface_enabled: apiKeys.huggingFace.enabled,
-                    newsapi_enabled: apiKeys.newsApi.enabled,
-                    elevenlabs_voice_enabled: apiKeys.elevenLabs.enabled,
+                    gemini_enabled: apiKeys.gemini.enabled,
                 },
                 web_preview: projectFiles ? 'A responsive, mobile-sized preview is visible in the Web Studio.' : 'Inactive',
-                voice_module: apiKeys.elevenLabs.enabled && apiKeys.elevenLabs.key ? 'ElevenLabs (Enhanced)' : 'Standard',
                 current_personality: apiKeys.currentPersonality,
             };
             return JSON.stringify(systemStatus);

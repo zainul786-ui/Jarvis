@@ -79,51 +79,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, a
                 
                 <main className="flex-grow p-6 overflow-y-auto">
                     <p className="text-sm text-cyan-400/60 mb-6 font-sans">
-                        Enable and provide API keys for third-party services to expand J.A.R.V.I.S.'s capabilities. Keys are stored in your browser's local storage and are never shown publicly.
+                        Provide API keys for Gemini and YouTube to enable J.A.R.V.I.S.'s core functions.
                     </p>
                     
-                    <ApiKeyInput 
-                        label="Google Search API"
-                        value={localKeys.googleSearch.key}
-                        enabled={localKeys.googleSearch.enabled}
-                        onValueChange={(v) => handleKeyChange('googleSearch', v)}
-                        onToggle={() => handleToggle('googleSearch')}
-                    />
-                    <ApiKeyInput 
-                        label="YouTube Data API"
-                        value={localKeys.youtube.key}
-                        enabled={localKeys.youtube.enabled}
-                        onValueChange={(v) => handleKeyChange('youtube', v)}
-                        onToggle={() => handleToggle('youtube')}
-                    />
-                    <ApiKeyInput 
-                        label="Spotify API"
-                        value={localKeys.spotify.key}
-                        enabled={localKeys.spotify.enabled}
-                        onValueChange={(v) => handleKeyChange('spotify', v)}
-                        onToggle={() => handleToggle('spotify')}
-                    />
-                    <ApiKeyInput 
-                        label="HuggingFace Token"
-                        value={localKeys.huggingFace.key}
-                        enabled={localKeys.huggingFace.enabled}
-                        onValueChange={(v) => handleKeyChange('huggingFace', v)}
-                        onToggle={() => handleToggle('huggingFace')}
-                    />
-                     <ApiKeyInput 
-                        label="NewsAPI Key"
-                        value={localKeys.newsApi.key}
-                        enabled={localKeys.newsApi.enabled}
-                        onValueChange={(v) => handleKeyChange('newsApi', v)}
-                        onToggle={() => handleToggle('newsApi')}
-                    />
-                    <ApiKeyInput 
-                        label="ElevenLabs API"
-                        value={localKeys.elevenLabs.key}
-                        enabled={localKeys.elevenLabs.enabled}
-                        onValueChange={(v) => handleKeyChange('elevenLabs', v)}
-                        onToggle={() => handleToggle('elevenLabs')}
-                    />
+                    <div className="space-y-6">
+                        <ApiKeyInput 
+                            label="Gemini API Key"
+                            value={localKeys.gemini.key}
+                            enabled={localKeys.gemini.enabled}
+                            onValueChange={(v) => handleKeyChange('gemini', v)}
+                            onToggle={() => handleToggle('gemini')}
+                        />
+                        <ApiKeyInput 
+                            label="YouTube Data API"
+                            value={localKeys.youtube.key}
+                            enabled={localKeys.youtube.enabled}
+                            onValueChange={(v) => handleKeyChange('youtube', v)}
+                            onToggle={() => handleToggle('youtube')}
+                        />
+                    </div>
                 </main>
 
                 <footer className="flex-shrink-0 p-4 border-t border-cyan-400/20 flex justify-end space-x-4">

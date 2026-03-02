@@ -1,7 +1,6 @@
 
 import axios from 'axios';
 
-const YOUTUBE_API_KEY = 'AIzaSyBKOpEDAbtWrtFs-BYE9AnJ5zMiyBQoZlg';
 const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 
 export interface YouTubeVideo {
@@ -11,8 +10,14 @@ export interface YouTubeVideo {
     channelTitle: string;
 }
 
-export const searchYouTube = async (query: string): Promise<YouTubeVideo | null> => {
+export const searchYouTube = async (query: string, apiKey?: string): Promise<YouTubeVideo | null> => {
     try {
+        const key = apiKey || import.meta.env.VITE_YOUTUBE_API_KEY;
+        if (!key) {
+            console.error('YouTube API key is missing.');
+            return null;
+        }
+
         const response = await axios.get(YOUTUBE_SEARCH_URL, {
             params: {
                 part: 'snippet',
@@ -21,7 +26,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeVideo | null>
                 type: 'video',
                 videoEmbeddable: 'true',
                 videoSyndicated: 'true',
-                key: YOUTUBE_API_KEY,
+                key: key,
             },
         });
 

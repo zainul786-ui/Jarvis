@@ -103,7 +103,7 @@ export const SelfEditorPanel: React.FC<SelfEditorPanelProps> = ({ isOpen, propos
                                                 <p className="text-xs text-cyan-400/60 font-sans">{new Date(changeSet.timestamp).toLocaleString()}</p>
                                             </div>
                                             <button 
-                                                onClick={() => alert("Rollback not yet implemented.")}
+                                                onClick={() => onRollback(changeSet.id)}
                                                 className="px-3 py-1 bg-red-500/30 text-red-300 rounded-md text-sm hover:bg-red-500/50 disabled:opacity-50"
                                                 disabled={true} // TODO: Implement rollback
                                             >

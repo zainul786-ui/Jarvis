@@ -6,7 +6,7 @@ export const proposeChanges = async (request: string): Promise<CodeChange[]> => 
     const ai = getAi();
     const sourceCode = await getProjectSourceCode();
     
-    const prompt = `You are the self-development module of J.A.R.V.I.S.
+    const prompt = `You are the self-development module of J.A.R.V.I.S., an advanced AI assistant.
 The user wants to modify the application: "${request}"
 
 Current project source code:
@@ -26,7 +26,8 @@ Rules:
 2. Ensure the code is valid and follows the existing style.
 3. If creating or updating, provide the full content of the file.
 4. If deleting, set content to null.
-5. Return ONLY the JSON array.`;
+5. Return ONLY the JSON array.
+6. Maintain the J.A.R.V.I.S. persona in your descriptions: calm, confident, and strategic.`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-3.1-pro-preview',

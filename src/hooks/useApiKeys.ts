@@ -4,12 +4,8 @@ import { ApiKeys, PersonalityMode } from '../types';
 const API_KEYS_STORAGE_KEY = 'jarvis_api_keys';
 
 const initialApiKeys: ApiKeys = {
-    googleSearch: { key: '', enabled: false },
-    youtube: { key: 'AIzaSyBKOpEDAbtWrtFs-BYE9AnJ5zMiyBQoZlg', enabled: true },
-    spotify: { key: '', enabled: false },
-    huggingFace: { key: '', enabled: false },
-    newsApi: { key: '', enabled: false },
-    elevenLabs: { key: '', enabled: false },
+    gemini: { key: '', enabled: true },
+    youtube: { key: '', enabled: true },
     currentPersonality: PersonalityMode.ASSISTANT,
 };
 
@@ -23,7 +19,17 @@ export const useApiKeys = () => {
             if (storedKeys) {
                 // Merge with initial keys to ensure all keys are present even if storage is outdated
                 const parsedKeys = JSON.parse(storedKeys);
-                setApiKeys({ ...initialApiKeys, ...parsedKeys });
+                const mergedKeys = { ...initialApiKeys, ...parsedKeys };
+                
+                // Also check for the legacy gemini_api_key if the new one is empty
+                if (!mergedKeys.gemini.key) {
+                    const legacyKey = localStorage.getItem('gemini_api_key');
+                    if (legacyKey) {
+                        mergedKeys.gemini.key = legacyKey;
+                    }
+                }
+                
+                setApiKeys(mergedKeys);
             }
         } catch (error) {
             console.error("Failed to load API keys:", error);
