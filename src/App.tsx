@@ -23,11 +23,26 @@ const BackgroundFX = () => (
     </div>
 );
 
+const SplashScreen: React.FC = () => (
+    <div className="fixed inset-0 z-[100] bg-[#030814] flex flex-col items-center justify-center animate-[fadeOut_0.5s_ease-in-out_2.5s_forwards]">
+        <div className="relative">
+            <ArcReactorIcon className="w-32 h-32 text-cyan-400 animate-[spin_4s_linear_infinite]" />
+            <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full animate-pulse"></div>
+        </div>
+        <h1 className="mt-8 font-orbitron text-3xl font-bold text-cyan-300 jarvis-glow uppercase tracking-[0.3em] animate-pulse">
+            J.A.R.V.I.S.
+        </h1>
+        <p className="mt-2 text-cyan-400/50 uppercase tracking-widest text-xs">Initializing Systems...</p>
+    </div>
+);
+
 type AppState = 'loading' | 'requires_key' | 'ready';
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>('loading');
+    const [showSplash, setShowSplash] = useState(true);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [assistantStatus, setAssistantStatus] = useState<AssistantStatus>(AssistantStatus.IDLE);
     const [transcript, setTranscript] = useState<Transcript>({ user: '', jarvis: '' });
     const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
@@ -46,6 +61,24 @@ const App: React.FC = () => {
     const [isHolographicPanelOpen, setIsHolographicPanelOpen] = useState(false);
     const { apiKeys, updateApiKeys, updatePersonality } = useApiKeys();
     const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
+
+    useEffect(() => {
+        // Handle PWA installation prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        });
+
+        // Splash screen timer
+        const timer = setTimeout(() => {
+            setShowSplash(false);
+        }, 3000);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('beforeinstallprompt', () => {});
+        };
+    }, []);
 
     useEffect(() => {
         if (apiKeys.gemini.key && apiKeys.gemini.enabled) {
@@ -293,7 +326,22 @@ const App: React.FC = () => {
     
     return (
         <div className={`bg-[#030814] min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 transition-opacity duration-1000 opacity-100`}>
+            {showSplash && <SplashScreen />}
             <BackgroundFX />
+
+            {/* PWA Install Button */}
+            {deferredPrompt && (
+                <button
+                    onClick={async () => {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        if (outcome === 'accepted') setDeferredPrompt(null);
+                    }}
+                    className="fixed top-4 right-4 z-[60] px-4 py-2 bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 rounded-full text-xs uppercase tracking-widest hover:bg-cyan-500/40 transition-all jarvis-glow"
+                >
+                    Install HUD
+                </button>
+            )}
 
             {/* Main Content Area */}
             <main className="relative z-10 w-full h-[calc(100vh-1rem)] max-w-7xl mx-auto flex flex-col flex-grow pb-28">
