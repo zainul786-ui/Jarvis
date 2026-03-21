@@ -12,7 +12,7 @@ export interface YouTubeVideo {
 
 export const searchYouTube = async (query: string, apiKey?: string): Promise<YouTubeVideo | null> => {
     try {
-        const key = apiKey || import.meta.env.VITE_YOUTUBE_API_KEY;
+        const key = apiKey;
         if (!key) {
             console.error('YouTube API key is missing.');
             return null;

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
@@ -14,15 +14,18 @@
     "@tailwindcss/vite": "^4.2.1",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
+    "express": "^5.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",
     "motion": "^12.34.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-youtube": "^10.1.0",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/jszip": "^3.4.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",

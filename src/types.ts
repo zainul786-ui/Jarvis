@@ -30,8 +30,8 @@ export interface ApiKeyEntry {
 }
 
 export interface ApiKeys {
-    gemini: ApiKeyEntry;
     youtube: ApiKeyEntry;
+    grok: ApiKeyEntry;
     currentPersonality: PersonalityMode;
 }
 
@@ -39,19 +39,3 @@ export interface Transcript {
     user: string;
     jarvis: string;
 }
-
-export interface CodeChange {
-    type: 'CREATE' | 'UPDATE' | 'DELETE';
-    file: string;
-    content: string | null;
-    description: string;
-}
-
-export interface ChangeSet {
-    id: string;
-    timestamp: number;
-    summary: string;
-    changes: CodeChange[];
-}
-
-export type SystemContext = 'IDLE' | 'CODING_WEBSITE' | 'SELF_MODIFYING';

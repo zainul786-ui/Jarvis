@@ -1,147 +1,154 @@
 
-import JSZip from 'jszip';
+// J.A.R.V.I.S. HUD - Version 2.1.1 (Grok Integration Fix)
 import React, { useState, useEffect, useCallback } from 'react';
 import { VoicePanel } from './components/VoicePanel';
-import { ArcReactorIcon, SettingsIcon } from './components/Icons';
-import { AssistantStatus, Transcript, CodeChange, ChangeSet, SystemContext } from './types';
+import { ArcReactorIcon } from './components/Icons';
+import { AssistantStatus, Transcript } from './types';
 import { VoiceVisualizer } from './components/JarvisVisualizer';
-import { SelfEditorPanel } from './components/SelfEditorPanel';
-import { WebPanel } from './components/WebPanel';
-import { useVersionControl } from './hooks/useVersionControl';
-import { getProjectSourceCode } from './utils/sourceCode';
 import { useApiKeys } from './hooks/useApiKeys';
 import { SettingsPanel } from './components/SettingsPanel';
-import { HolographicPanel } from './components/HolographicPanel';
-import { initializeApi } from './services/gemini';
 import { YouTubePlayer } from './components/YouTubePlayer';
 import { searchYouTube, YouTubeVideo } from './services/youtubeService';
+import { motion, AnimatePresence } from 'motion/react';
+import JSZip from 'jszip';
+import { 
+    Shield, 
+    Wifi, 
+    Cpu, 
+    Clock, 
+    Key, 
+    MessageSquare, 
+    Eye, 
+    Code, 
+    Download,
+    Settings,
+    ChevronRight,
+    Monitor
+} from 'lucide-react';
 
 const BackgroundFX = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(0,194,255,0.1)_0,_transparent_60%)]"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%2width=%2240%22%20height=%2240%22%20viewBox=%220%200%2040%2040%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg%20fill=%22%2300c2ff%22%20fill-opacity=%220.05%22%20fill-rule=%22evenodd%22%3E%3Cpath%20d=%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22/%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(0,194,255,0.08)_0,_transparent_70%)]"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width=%2240%22%20height=%2240%22%20viewBox=%220%200%2040%2040%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg%20fill=%22%2300c2ff%22%20fill-opacity=%220.03%22%20fill-rule=%22evenodd%22%3E%3Cpath%20d=%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22/%3E%3C/g%3E%3C/svg%3E')] opacity-30"></div>
     </div>
 );
 
+const TopStatusBar = () => {
+    const [time, setTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    return (
+        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] font-orbitron text-cyan-400/60 border-b border-cyan-500/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                    <Cpu className="w-3 h-3 text-cyan-400 animate-pulse" />
+                    <span className="text-cyan-400">SYS ONLINE</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Wifi className="w-3 h-3" />
+                    <span>CONNECTED</span>
+                </div>
+            </div>
+            <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                    <Shield className="w-3 h-3" />
+                    <span>ENCRYPTED</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Clock className="w-3 h-3" />
+                    <span>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                </div>
+            </div>
+        </header>
+    );
+};
+
 const SplashScreen: React.FC = () => (
-    <div className="fixed inset-0 z-[100] bg-[#030814] flex flex-col items-center justify-center animate-[fadeOut_0.5s_ease-in-out_2.5s_forwards]">
-        <div className="relative">
-            <ArcReactorIcon className="w-32 h-32 text-cyan-400 animate-[spin_4s_linear_infinite]" />
-            <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full animate-pulse"></div>
-        </div>
-        <h1 className="mt-8 font-orbitron text-3xl font-bold text-cyan-300 jarvis-glow uppercase tracking-[0.3em] animate-pulse">
+    <div className="fixed inset-0 z-[100] bg-[#030814] flex flex-col items-center justify-center">
+        <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="relative"
+        >
+            <ArcReactorIcon className="w-32 h-32 text-cyan-400 animate-[spin_8s_linear_infinite]" />
+            <div className="absolute inset-0 bg-cyan-400/20 blur-3xl rounded-full animate-pulse"></div>
+        </motion.div>
+        <motion.h1 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="mt-8 font-orbitron text-4xl font-bold text-cyan-300 jarvis-glow uppercase tracking-[0.4em]"
+        >
             J.A.R.V.I.S.
-        </h1>
-        <p className="mt-2 text-cyan-400/50 uppercase tracking-widest text-xs">Initializing Systems...</p>
+        </motion.h1>
+        <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2 }}
+            className="mt-2 text-cyan-400/50 uppercase tracking-[0.3em] text-[10px]"
+        >
+            Initializing Neural Core...
+        </motion.p>
     </div>
 );
 
 type AppState = 'loading' | 'requires_key' | 'ready';
-const API_KEY_STORAGE_KEY = 'gemini_api_key';
+type ViewMode = 'chat' | 'preview' | 'code';
+const API_KEY_STORAGE_KEY = 'grok_api_key';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>('loading');
+    const [viewMode, setViewMode] = useState<ViewMode>('chat');
     const [showSplash, setShowSplash] = useState(true);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [assistantStatus, setAssistantStatus] = useState<AssistantStatus>(AssistantStatus.IDLE);
     const [transcript, setTranscript] = useState<Transcript>({ user: '', jarvis: '' });
     const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-    const [projectFiles, setProjectFiles] = useState<Record<string, string> | null>(null);
-    const [systemContext, setSystemContext] = useState<SystemContext>('IDLE');
-    const [localGeminiKey, setLocalGeminiKey] = useState('');
-    const [localYouTubeKey, setLocalYouTubeKey] = useState('');
+    const [localGrokKey, setLocalGrokKey] = useState('');
 
-    // Self-development state
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [proposedChanges, setProposedChanges] = useState<CodeChange[]>([]);
-    const { history, addChangeSet } = useVersionControl();
-    
     // Settings state
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isHolographicPanelOpen, setIsHolographicPanelOpen] = useState(false);
-    const { apiKeys, updateApiKeys, updatePersonality } = useApiKeys();
+    const { apiKeys, updateApiKeys } = useApiKeys();
     const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
 
     useEffect(() => {
-        // Handle PWA installation prompt
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
-        });
-
-        // Splash screen timer
         const timer = setTimeout(() => {
             setShowSplash(false);
         }, 3000);
 
-        return () => {
-            clearTimeout(timer);
-            window.removeEventListener('beforeinstallprompt', () => {});
-        };
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {
-        if (apiKeys.gemini.key && apiKeys.gemini.enabled) {
-            initializeApi(apiKeys.gemini.key);
-            setAppState('ready');
-        }
-    }, [apiKeys.gemini.key, apiKeys.gemini.enabled]);
-
-    useEffect(() => {
-        // The platform provides the Gemini API key in process.env.GEMINI_API_KEY.
-        // We initialize with it if it's available.
-        if (process.env.GEMINI_API_KEY) {
-            initializeApi(process.env.GEMINI_API_KEY);
+        if (apiKeys.grok.key && apiKeys.grok.enabled) {
             setAppState('ready');
         } else {
-            // Fallback for local development or if the key is missing.
             const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
             if (storedKey) {
-                initializeApi(storedKey);
                 setAppState('ready');
-            } else if (!apiKeys.gemini.key) {
+            } else {
                 setAppState('requires_key');
             }
         }
-    }, []);
+    }, [apiKeys.grok.key, apiKeys.grok.enabled]);
 
     const handleApiKeySubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const gKey = localGeminiKey.trim();
-        const yKey = localYouTubeKey.trim();
+        const grKey = localGrokKey.trim();
         
-        if (gKey) {
+        if (grKey) {
             const newKeys = {
                 ...apiKeys,
-                gemini: { key: gKey, enabled: true },
-                youtube: { key: yKey, enabled: !!yKey }
+                grok: { key: grKey, enabled: true }
             };
             updateApiKeys(newKeys);
-            initializeApi(gKey);
             setAppState('ready');
         }
     };
-
-    const handleApiKeyInvalid = useCallback(() => {
-        localStorage.removeItem(API_KEY_STORAGE_KEY);
-        setAppState('requires_key');
-    }, []);
-
-    const handleChangesProposed = useCallback((changes: CodeChange[]) => {
-        setProposedChanges(changes);
-        setIsEditorOpen(true);
-    }, []);
-
-    const handleProjectUpdate = useCallback((files: Record<string, string>) => {
-        setProjectFiles(files);
-        setSystemContext('CODING_WEBSITE');
-    }, []);
-    
-    const handleCloseWebStudio = useCallback(() => {
-        setProjectFiles(null);
-        setSystemContext('IDLE');
-        setIsHolographicPanelOpen(false); // Also close holo panel
-    }, []);
 
     const handleOpenSettings = useCallback(() => {
         setIsSettingsOpen(true);
@@ -151,117 +158,57 @@ const App: React.FC = () => {
         setIsSettingsOpen(false);
     }, []);
 
-    const handleOpenHolographicPanel = useCallback(() => {
-        if (systemContext === 'CODING_WEBSITE') {
-            setIsHolographicPanelOpen(true);
-        }
-    }, [systemContext]);
-
-    const downloadChangesAsZip = useCallback(async () => {
-        if (proposedChanges.length === 0) return;
-        try {
-            const currentSource = await getProjectSourceCode();
-            const newSource = { ...currentSource };
-    
-            for (const change of proposedChanges) {
-                if (change.type === 'DELETE') {
-                    delete newSource[change.file];
-                } else { // CREATE or UPDATE
-                    if (change.content !== null) {
-                        newSource[change.file] = change.content;
-                    }
-                }
-            }
-            
-            const zip = new JSZip();
-            Object.entries(newSource).forEach(([path, content]) => {
-                zip.file(path, content);
-            });
-    
-            const blob = await zip.generateAsync({ type: 'blob' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'jarvis-update.zip';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-
-            const newChangeSet: ChangeSet = {
-                id: `cs-${Date.now()}`,
-                timestamp: Date.now(),
-                summary: proposedChanges.map((c: CodeChange) => c.description).join(', ') || "System Update",
-                changes: proposedChanges,
-            };
-            addChangeSet(newChangeSet);
-            
-            setProposedChanges([]);
-            setIsEditorOpen(false);
-            alert("The self-update API is not available. The update has been downloaded as 'jarvis-update.zip'. Please apply the changes manually and reload the application.");
-        } catch (error) {
-            console.error("Failed to package changes:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during code generation.";
-            alert(`An error occurred while packaging the changes: ${errorMessage}`);
-        }
-    }, [proposedChanges, addChangeSet]);
-
-    const handleApproveChanges = useCallback(async () => {
-        if (proposedChanges.length === 0) return;
-        
-        const canSelfUpdate = typeof (window as any).aistudio?.project?.update === 'function';
-
-        if (canSelfUpdate && (window as any).aistudio?.project) {
-            try {
-                const filesToUpdate = proposedChanges.map((change: CodeChange) => ({
-                    path: change.file,
-                    content: change.content,
-                }));
-
-                await (window as any).aistudio.project.update({ files: filesToUpdate });
-
-                const newChangeSet: ChangeSet = {
-                    id: `cs-${Date.now()}`,
-                    timestamp: Date.now(),
-                    summary: proposedChanges.map((c: CodeChange) => c.description).join(', ') || "System Update",
-                    changes: proposedChanges,
-                };
-                addChangeSet(newChangeSet);
-                
-                setProposedChanges([]);
-                setIsEditorOpen(false);
-                alert("J.A.R.V.I.S. has been successfully updated. The application will now reload to apply the changes.");
-                window.location.reload();
-            } catch (error) {
-                console.error("Self-update failed, falling back to download:", error);
-                await downloadChangesAsZip();
-            }
-        } else {
-            console.warn("Self-update API not found, falling back to download.");
-            await downloadChangesAsZip();
-        }
-    }, [proposedChanges, addChangeSet, downloadChangesAsZip]);
-    
-    const handleRejectChanges = useCallback(() => {
-        setProposedChanges([]);
-        setIsEditorOpen(false);
-    }, []);
-    
-    const handleRollback = useCallback((changeSetId: string) => {
-        // TODO: Implement rollback logic
-        alert(`Rollback for ${changeSetId} is not yet implemented.`);
-    }, []);
-
     const handleYouTubePlay = useCallback(async (query: string) => {
         setAssistantStatus(AssistantStatus.THINKING);
-        const video = await searchYouTube(query, apiKeys.youtube.enabled ? apiKeys.youtube.key : undefined);
+        
+        const key = apiKeys.youtube.enabled ? apiKeys.youtube.key : undefined;
+        if (!key) {
+            setAssistantStatus(AssistantStatus.ERROR);
+            setTranscript((prev: Transcript) => ({ ...prev, jarvis: `Sir, I need a YouTube API key to play music. Please provide one in the settings.` }));
+            return false;
+        }
+
+        const video = await searchYouTube(query, key);
         if (video) {
             setActiveVideo(video);
             setAssistantStatus(AssistantStatus.IDLE);
+            return true;
         } else {
             setAssistantStatus(AssistantStatus.ERROR);
-            setTranscript((prev: Transcript) => ({ ...prev, jarvis: `I'm sorry, I couldn't find any video for "${query}" on YouTube.` }));
+            setTranscript((prev: Transcript) => ({ ...prev, jarvis: `I'm sorry, Sir. I couldn't find any video for "${query}" on YouTube. It might be restricted or unavailable.` }));
+            return false;
         }
     }, [apiKeys.youtube.enabled, apiKeys.youtube.key, setAssistantStatus, setTranscript]);
+
+    const downloadZip = async () => {
+        const zip = new JSZip();
+        
+        // Add files to zip
+        zip.file("index.html", `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. Project</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white">
+    <div id="root"></div>
+    <script>
+        // Generated by J.A.R.V.I.S.
+        console.log("System Online");
+    </script>
+</body>
+</html>`);
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const url = window.URL.createObjectURL(content);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = "jarvis-project.zip";
+        link.click();
+        window.URL.revokeObjectURL(url);
+    };
 
     if (appState === 'loading') {
         return (
@@ -273,143 +220,227 @@ const App: React.FC = () => {
 
     if (appState === 'requires_key') {
         return (
-            <div className="bg-[#030814] min-h-screen flex flex-col items-center justify-center p-4 text-center">
+            <div className="bg-[#030814] min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                <TopStatusBar />
                 <BackgroundFX />
-                <div className="relative z-10 jarvis-border bg-[#030814]/80 backdrop-blur-sm p-8 rounded-lg max-w-lg">
-                    <div className="flex items-center space-x-4 mb-6 justify-center">
-                        <ArcReactorIcon className="w-12 h-12 text-cyan-400" />
-                        <div>
-                            <h1 className="text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest font-orbitron">J.A.R.V.I.S.</h1>
-                            <p className="text-sm text-cyan-400/70">System Activation</p>
+                
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="relative z-10 w-full max-w-md flex flex-col items-center"
+                >
+                    <div className="relative mb-12 group">
+                        <div className="absolute inset-0 bg-cyan-500/20 blur-2xl rounded-full group-hover:bg-cyan-500/30 transition-all duration-500"></div>
+                        <div className="relative w-24 h-24 rounded-full border-2 border-cyan-400/30 flex items-center justify-center bg-black/40 backdrop-blur-md shadow-[0_0_30px_rgba(0,229,255,0.2)]">
+                            <Key className="w-10 h-10 text-cyan-400" />
                         </div>
                     </div>
-                    <p className="text-cyan-300/80 mb-6">
-                      Please enter your API keys to activate J.A.R.V.I.S.
-                    </p>
-                    <form onSubmit={handleApiKeySubmit} className="flex flex-col space-y-4">
-                        <div className="space-y-1 text-left">
-                            <label className="text-xs text-cyan-400/70 uppercase tracking-widest ml-1">Gemini API Key (Required)</label>
+
+                    <h1 className="text-4xl font-bold text-cyan-300 jarvis-glow uppercase tracking-[0.4em] font-orbitron mb-2">J.A.R.V.I.S.</h1>
+                    <p className="text-[10px] text-cyan-400/60 uppercase tracking-[0.2em] mb-12 text-center">Just A Rather Very Intelligent System</p>
+
+                    <form onSubmit={handleApiKeySubmit} className="w-full space-y-6">
+                        <div className="relative group">
                             <input
                                 type="password"
-                                value={localGeminiKey}
-                                onChange={(e) => setLocalGeminiKey(e.target.value)}
-                                className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                                placeholder="Enter Gemini Key"
+                                value={localGrokKey}
+                                onChange={(e) => setLocalGrokKey(e.target.value)}
+                                className="w-full bg-black/40 border border-cyan-500/20 rounded-xl px-4 py-4 text-cyan-100 font-mono focus:outline-none focus:border-cyan-400/50 transition-all placeholder:text-cyan-900"
+                                placeholder="Enter Grok API Key"
                                 required
                             />
                         </div>
-                        <div className="space-y-1 text-left">
-                            <label className="text-xs text-cyan-400/70 uppercase tracking-widest ml-1">YouTube API Key (Optional)</label>
-                            <input
-                                type="password"
-                                value={localYouTubeKey}
-                                onChange={(e) => setLocalYouTubeKey(e.target.value)}
-                                className="w-full bg-black/30 border border-cyan-400/30 rounded-md px-3 py-2 text-cyan-200 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                                placeholder="Enter YouTube Key"
-                            />
-                        </div>
+
                         <button
                             type="submit"
-                            className="w-full px-6 py-3 bg-cyan-500/80 text-white rounded-lg hover:bg-cyan-500 transition-all duration-300 font-bold uppercase tracking-wider jarvis-glow disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                            disabled={!localGeminiKey.trim()}
+                            className="w-full group flex items-center justify-center space-x-3 px-6 py-4 bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 rounded-xl hover:bg-cyan-500/20 transition-all duration-300 font-bold uppercase tracking-widest disabled:opacity-30"
+                            disabled={!localGrokKey.trim()}
                         >
-                            Activate System
+                            <span>Initialize System</span>
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                     </form>
-                    <p className="text-xs text-cyan-500/60 mt-4">
-                        Your key is stored locally and used only for API requests.
+
+                    <p className="text-[10px] text-cyan-400/30 mt-12 text-center leading-relaxed max-w-[280px]">
+                        Your API key is stored locally and never sent to any server other than xAI's API.
                     </p>
-                </div>
+                </motion.div>
             </div>
         );
     }
     
     return (
-        <div className={`bg-[#030814] min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 transition-opacity duration-1000 opacity-100`}>
-            {showSplash && <SplashScreen />}
+        <div className="bg-[#030814] min-h-screen flex flex-col relative overflow-hidden">
+            <AnimatePresence>
+                {showSplash && <SplashScreen />}
+            </AnimatePresence>
+            
+            <TopStatusBar />
             <BackgroundFX />
 
-            {/* PWA Install Button */}
-            {deferredPrompt && (
-                <button
-                    onClick={async () => {
-                        deferredPrompt.prompt();
-                        const { outcome } = await deferredPrompt.userChoice;
-                        if (outcome === 'accepted') setDeferredPrompt(null);
-                    }}
-                    className="fixed top-4 right-4 z-[60] px-4 py-2 bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 rounded-full text-xs uppercase tracking-widest hover:bg-cyan-500/40 transition-all jarvis-glow"
-                >
-                    Install HUD
-                </button>
-            )}
-
             {/* Main Content Area */}
-            <main className="relative z-10 w-full h-[calc(100vh-1rem)] max-w-7xl mx-auto flex flex-col flex-grow pb-28">
-                 {projectFiles ? (
-                    <WebPanel files={projectFiles} onClose={handleCloseWebStudio} />
-                 ) : (
-                    <>
-                        <header className="flex-shrink-0 p-4 flex justify-between items-start">
-                            <button 
-                                onClick={handleOpenSettings}
-                                className="p-2 rounded-full jarvis-border bg-[#030814]/50 text-cyan-400 hover:text-white transition-all duration-300 pointer-events-auto"
-                                title="Settings"
-                            >
-                                <SettingsIcon className="w-6 h-6" />
-                            </button>
-                            <div className="text-right">
-                                <h1 className="font-orbitron text-2xl font-bold text-cyan-300 jarvis-glow uppercase tracking-widest">J.A.R.V.I.S.</h1>
-                                <p className="text-sm text-cyan-400/70">HUD Active</p>
-                            </div>
-                        </header>
-                        <div className="flex-grow flex flex-col items-center justify-center relative">
+            <main className="flex-grow relative z-10 flex flex-col pt-16 pb-24 px-4 overflow-hidden">
+                <AnimatePresence mode="wait">
+                    {viewMode === 'chat' && (
+                        <motion.div 
+                            key="chat"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex-grow flex flex-col items-center justify-center relative"
+                        >
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
-                                <div className="h-40 flex items-end">
+                                <div className="h-48 flex items-end pb-8">
                                     {transcript.jarvis && (
-                                        <p className="text-2xl sm:text-3xl md:text-4xl text-cyan-200 jarvis-glow font-light animate-[fadeIn_0.5s_ease-out]">
+                                        <p className="text-2xl sm:text-3xl md:text-4xl text-cyan-200 jarvis-glow font-light leading-tight">
                                             {transcript.jarvis}
                                         </p>
                                     )}
                                 </div>
-                                <div className="h-40 flex items-start pt-8">
+                                <div className="h-24 flex items-start">
                                     {transcript.user && (
-                                        <p className="text-lg sm:text-xl text-cyan-400/80 italic animate-[fadeIn_0.5s_ease-out]">
-                                            {transcript.user}
+                                        <p className="text-lg text-cyan-400/60 italic font-light">
+                                            "{transcript.user}"
                                         </p>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    </>
-                 )}
+                            
+                            {/* Visualizer in Chat View */}
+                            <div className="relative z-0 pointer-events-none">
+                                <VoiceVisualizer analyserNode={analyserNode} status={assistantStatus} />
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {viewMode === 'preview' && (
+                        <motion.div 
+                            key="preview"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="flex-grow flex flex-col items-center justify-center p-4"
+                        >
+                            <div className="w-full h-full bg-black/40 border border-cyan-500/20 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                                <Monitor className="text-cyan-500/40 w-12 h-12 mb-4" />
+                                <p className="text-cyan-500/60 font-orbitron text-sm tracking-widest">LIVE PREVIEW ENGINE</p>
+                                <p className="text-cyan-500/30 text-[10px] mt-4 max-w-md text-center px-8 uppercase tracking-widest">
+                                    The live preview is currently rendering on the primary display. 
+                                    Use the "Open in New Tab" feature for a full-screen experience.
+                                </p>
+                                <button 
+                                    onClick={() => window.open(window.location.href, '_blank')}
+                                    className="mt-8 px-8 py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-[10px] font-orbitron hover:bg-cyan-500/20 transition-all uppercase tracking-widest"
+                                >
+                                    Launch External View
+                                </button>
+                                
+                                {/* Grid background for preview area */}
+                                <div className="absolute inset-0 pointer-events-none opacity-10 -z-10" 
+                                     style={{ backgroundImage: 'radial-gradient(circle, #00e5ff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {viewMode === 'code' && (
+                        <motion.div 
+                            key="code"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="flex-grow flex flex-col p-4"
+                        >
+                            <div className="flex-grow bg-[#0d1117] rounded-2xl border border-cyan-500/20 overflow-hidden flex flex-col">
+                                <div className="bg-[#161b22] px-4 py-3 border-b border-cyan-500/10 flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                                        <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                                        <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                                        <span className="ml-4 text-[10px] text-cyan-500/60 font-mono uppercase tracking-widest">src/App.tsx</span>
+                                    </div>
+                                    <button 
+                                        onClick={downloadZip}
+                                        className="flex items-center space-x-2 px-4 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-[10px] text-cyan-400 font-orbitron hover:bg-cyan-500/20 transition-all uppercase tracking-widest"
+                                    >
+                                        <Download className="w-3 h-3" />
+                                        <span>Export Zip</span>
+                                    </button>
+                                </div>
+                                <div className="flex-grow p-6 font-mono text-sm overflow-auto custom-scrollbar">
+                                    <pre className="text-cyan-100/80">
+                                        <code>{`// J.A.R.V.I.S. Core System v2.1.1
+import React from 'react';
+import { motion } from 'framer-motion';
+
+export const JarvisHUD = () => {
+  return (
+    <div className="min-h-screen bg-black text-cyan-400">
+      <header className="p-6 border-b border-cyan-500/20">
+        <h1 className="text-2xl font-orbitron tracking-tighter">
+          SYSTEM STATUS: ONLINE
+        </h1>
+      </header>
+      
+      <main className="container mx-auto py-12">
+        <div className="grid grid-cols-3 gap-8">
+          {/* HUD Elements */}
+        </div>
+      </main>
+    </div>
+  );
+};`}</code>
+                                    </pre>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </main>
 
-            {/* Global Visualizer - always in the center */}
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none z-20">
-                 <VoiceVisualizer analyserNode={analyserNode} status={assistantStatus} />
-            </div>
+            {/* Bottom Navigation Bar */}
+            <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-lg bg-black/40 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-2 flex items-center justify-between shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center space-x-1">
+                    <button 
+                        onClick={() => setViewMode('chat')}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${viewMode === 'chat' ? 'bg-cyan-500/20 text-cyan-300' : 'text-cyan-400/40 hover:text-cyan-400'}`}
+                    >
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="text-[10px] uppercase font-bold tracking-widest">Chat</span>
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('preview')}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${viewMode === 'preview' ? 'bg-cyan-500/20 text-cyan-300' : 'text-cyan-400/40 hover:text-cyan-400'}`}
+                    >
+                        <Eye className="w-4 h-4" />
+                        <span className="text-[10px] uppercase font-bold tracking-widest">Preview</span>
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('code')}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${viewMode === 'code' ? 'bg-cyan-500/20 text-cyan-300' : 'text-cyan-400/40 hover:text-cyan-400'}`}
+                    >
+                        <Code className="w-4 h-4" />
+                        <span className="text-[10px] uppercase font-bold tracking-widest">Code</span>
+                    </button>
+                </div>
 
-            {/* Global Voice Panel - always at the bottom */}
-            <footer className="fixed bottom-0 left-0 right-0 z-30 flex justify-center p-4">
-                 <VoicePanel
-                    setAssistantStatus={setAssistantStatus}
-                    setTranscript={setTranscript}
-                    setAnalyserNode={setAnalyserNode}
-                    onApiKeyInvalid={handleApiKeyInvalid}
-                    onChangesProposed={handleChangesProposed}
-                    projectFiles={projectFiles}
-                    onProjectUpdate={handleProjectUpdate}
-                    systemContext={systemContext}
-                    setSystemContext={setSystemContext}
-                    onOpenSettings={handleOpenSettings}
-                    onOpenHolographicPanel={handleOpenHolographicPanel}
-                    apiKeys={apiKeys}
-                    isEditorOpen={isEditorOpen}
-                    isSettingsOpen={isSettingsOpen}
-                    updatePersonality={updatePersonality}
-                    onYouTubePlay={handleYouTubePlay}
-                />
-            </footer>
+                <div className="flex items-center space-x-2 pr-2">
+                    <button 
+                        onClick={handleOpenSettings}
+                        className="p-2 text-cyan-400/40 hover:text-cyan-400 transition-colors"
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
+                    <div className="w-px h-6 bg-cyan-500/10 mx-1"></div>
+                    <VoicePanel
+                        setAssistantStatus={setAssistantStatus}
+                        setTranscript={setTranscript}
+                        setAnalyserNode={setAnalyserNode}
+                        apiKeys={apiKeys}
+                        onYouTubePlay={handleYouTubePlay}
+                        isCompact={true}
+                    />
+                </div>
+            </nav>
 
             {activeVideo && (
                 <YouTubePlayer 
@@ -419,25 +450,11 @@ const App: React.FC = () => {
                 />
             )}
 
-            <SelfEditorPanel 
-                isOpen={isEditorOpen}
-                proposedChanges={proposedChanges}
-                history={history}
-                onApprove={handleApproveChanges}
-                onReject={handleRejectChanges}
-                onRollback={handleRollback}
-            />
-
             <SettingsPanel
                 isOpen={isSettingsOpen}
                 onClose={handleCloseSettings}
                 apiKeys={apiKeys}
                 onSave={updateApiKeys}
-            />
-
-            <HolographicPanel 
-                isOpen={isHolographicPanelOpen}
-                onClose={() => setIsHolographicPanelOpen(false)}
             />
         </div>
     );
